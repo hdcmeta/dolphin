@@ -1,6 +1,6 @@
 // Copyright 2008 Dolphin Emulator Project
 // Licensed under GPLv2+
-// Refer to the license.txt file included.
+// Refer to the license.txt file included. 
 
 #include <string>
 
@@ -13,17 +13,20 @@
 #include "Core/Core.h"
 #include "Core/Host.h"
 
-#include "VideoBackends/D3D/BoundingBox.h"
-#include "VideoBackends/D3D/D3DBase.h"
-#include "VideoBackends/D3D/D3DUtil.h"
-#include "VideoBackends/D3D/GeometryShaderCache.h"
-#include "VideoBackends/D3D/Globals.h"
-#include "VideoBackends/D3D/PerfQuery.h"
-#include "VideoBackends/D3D/PixelShaderCache.h"
-#include "VideoBackends/D3D/TextureCache.h"
-#include "VideoBackends/D3D/VertexManager.h"
-#include "VideoBackends/D3D/VertexShaderCache.h"
-#include "VideoBackends/D3D/VideoBackend.h"
+
+#include "VideoBackends/D3D12/BoundingBox.h"
+#include "VideoBackends/D3D12/D3DCommandListManager.h"
+#include "VideoBackends/D3D12/D3DBase.h"
+#include "VideoBackends/D3D12/D3DUtil.h"
+#include "VideoBackends/D3D12/GeometryShaderCache.h"
+#include "VideoBackends/D3D12/PerfQuery.h"
+#include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/TextureCache.h"
+#include "VideoBackends/D3D12/VertexManager.h"
+#include "VideoBackends/D3D12/VertexShaderCache.h"
+#include "VideoBackends/D3D12/VideoBackend.h"
+
+#include "VideoBackends/D3D12/main.h"
 
 #include "VideoCommon/BPStructs.h"
 #include "VideoCommon/CommandProcessor.h"
@@ -38,7 +41,7 @@
 #include "VideoCommon/VertexShaderManager.h"
 #include "VideoCommon/VideoConfig.h"
 
-namespace DX11
+namespace DX12
 {
 
 unsigned int VideoBackend::PeekMessages()
@@ -56,26 +59,26 @@ unsigned int VideoBackend::PeekMessages()
 
 std::string VideoBackend::GetName() const
 {
-	return "D3D";
+	return "D3D12";
 }
 
 std::string VideoBackend::GetDisplayName() const
 {
-	return "Direct3D";
+	return "Direct3D 12";
 }
 
 std::string VideoBackend::GetConfigName() const
 {
-	return "gfx_dx11";
+	return "gfx_dx12";
 }
 
 void InitBackendInfo()
 {
-	HRESULT hr = DX11::D3D::LoadDXGI();
-	if (SUCCEEDED(hr)) hr = DX11::D3D::LoadD3D();
+	HRESULT hr = DX12::D3D::LoadDXGI();
+	if (SUCCEEDED(hr)) hr = DX12::D3D::LoadD3D();
 	if (FAILED(hr))
 	{
-		DX11::D3D::UnloadDXGI();
+		DX12::D3D::UnloadDXGI();
 		return;
 	}
 
@@ -92,7 +95,7 @@ void InitBackendInfo()
 
 	IDXGIFactory* factory;
 	IDXGIAdapter* ad;
-	hr = DX11::PCreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
+	hr = DX12::create_dxgi_factory(__uuidof(IDXGIFactory), (void**)&factory);
 	if (FAILED(hr))
 		PanicAlert("Failed to create IDXGIFactory object");
 
@@ -110,20 +113,20 @@ void InitBackendInfo()
 		if (adapter_index == g_Config.iAdapter)
 		{
 			std::string samples;
-			std::vector<DXGI_SAMPLE_DESC> modes = DX11::D3D::EnumAAModes(ad);
+			std::vector<DXGI_SAMPLE_DESC> modes = DX12::D3D::EnumAAModes(ad);
 			// First iteration will be 1. This equals no AA.
 			for (unsigned int i = 0; i < modes.size(); ++i)
 			{
 				g_Config.backend_info.AAModes.push_back(modes[i].Count);
 			}
 
-			bool shader_model_5_supported = (DX11::D3D::GetFeatureLevel(ad) >= D3D_FEATURE_LEVEL_11_0);
+			bool shader_model_5_supported = (DX12::D3D::GetFeatureLevel(ad) >= D3D_FEATURE_LEVEL_11_0);
 
 			// Requires the earlydepthstencil attribute (only available in shader model 5)
 			g_Config.backend_info.bSupportsEarlyZ = shader_model_5_supported;
 
 			// Requires full UAV functionality (only available in shader model 5)
-			g_Config.backend_info.bSupportsBBox = shader_model_5_supported;
+			g_Config.backend_info.bSupportsBBox = false; // D3D12TODO: Implement GPU-side bounding box;
 
 			// Requires the instance attribute (only available in shader model 5)
 			g_Config.backend_info.bSupportsGSInstancing = shader_model_5_supported;
@@ -140,8 +143,8 @@ void InitBackendInfo()
 	g_Config.backend_info.PPShaders.clear();
 	g_Config.backend_info.AnaglyphShaders.clear();
 
-	DX11::D3D::UnloadDXGI();
-	DX11::D3D::UnloadD3D();
+	DX12::D3D::UnloadDXGI();
+	DX12::D3D::UnloadD3D();
 }
 
 void VideoBackend::ShowConfig(void *hParent)
@@ -183,6 +186,7 @@ void VideoBackend::Video_Prepare()
 	VertexShaderCache::Init();
 	PixelShaderCache::Init();
 	GeometryShaderCache::Init();
+	StateCache::Init(); // PSO cache is populated here, after constituent shaders are loaded.
 	D3D::InitUtils();
 
 	// VideoCommon
@@ -209,6 +213,9 @@ void VideoBackend::Shutdown()
 	// TODO: should be in Video_Cleanup
 	if (g_renderer)
 	{
+		// Immediately stop app from submitting work to GPU, and wait for all submitted work to complete. D3D12TODO: Check this.
+		D3D::command_list_mgr->ExecuteQueuedWork(true);
+
 		// VideoCommon
 		Fifo_Shutdown();
 		CommandProcessor::Shutdown();
@@ -232,6 +239,7 @@ void VideoBackend::Shutdown()
 		g_renderer = nullptr;
 		g_texture_cache = nullptr;
 		g_vertex_manager = nullptr;
+		g_perf_query = nullptr;
 	}
 }
 
