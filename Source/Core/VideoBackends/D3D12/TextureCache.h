@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "VideoBackends/D3D/D3DTexture.h"
+#include "VideoBackends/D3D12/D3DTexture.h"
 #include "VideoCommon/TextureCacheBase.h"
 
-namespace DX11
+namespace DX12
 {
 
 class TextureCache : public TextureCacheBase
@@ -20,8 +20,9 @@ private:
 	struct TCacheEntry : TCacheEntryBase
 	{
 		D3DTexture2D *const texture;
-
-		D3D11_USAGE usage;
+		D3D12_CPU_DESCRIPTOR_HANDLE srvCpuHandle;
+		D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle;
+		D3D12_CPU_DESCRIPTOR_HANDLE srvGpuHandleCpuShadow;
 
 		TCacheEntry(const TCacheEntryConfig& config, D3DTexture2D *_tex) : TCacheEntryBase(config), texture(_tex) {}
 		~TCacheEntry();
@@ -54,10 +55,15 @@ private:
 	void CompileShaders() override { }
 	void DeleteShaders() override { }
 
-	ID3D11Buffer* palette_buf;
-	ID3D11ShaderResourceView* palette_buf_srv;
-	ID3D11Buffer* palette_uniform;
-	ID3D11PixelShader* palette_pixel_shader[3];
+	ID3D12Resource* palette_buf12;
+	UINT palette_buf12index;
+	void* palette_buf12data;
+	D3D12_CPU_DESCRIPTOR_HANDLE palette_buf12cpu[1024];
+	D3D12_GPU_DESCRIPTOR_HANDLE palette_buf12gpu[1024];
+	ID3D12Resource* palette_uniform12;
+	UINT palette_uniform12offset;
+	void* palette_uniform12data;
+	D3D12_SHADER_BYTECODE palette_pixel_shader12[3];
 };
 
 }
