@@ -582,8 +582,8 @@ void CreateRootSignatures()
 	if (g_ActiveConfig.bEnablePixelLighting)
 	{
 		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 1;
-		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 0;
+		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
+		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
 		rootParameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	}
 
