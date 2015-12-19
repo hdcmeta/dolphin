@@ -40,8 +40,7 @@ namespace DX12
 		ResetCommandAllocator,
 		FenceGpuSignal,
 		FenceCpuSignal,
-		Stop,
-		Noop
+		Stop
 	} D3DQueueItemType;
 
 	typedef struct SetPipelineStateArguments
@@ -143,7 +142,6 @@ namespace DX12
 		// UINT DstX, DstY, DstZ; Assuming always '0'. Checked at runtime with DEBUGCHECK.
 		D3D12_TEXTURE_COPY_LOCATION src;
 		D3D12_BOX srcBox;
-
 	} CopyTextureRegionArguments;
 
 	typedef struct SetDescriptorHeapsArguments
@@ -404,7 +402,6 @@ namespace DX12
 			);
 
 		void STDMETHODCALLTYPE ExecuteBundle(
-			/* [annotation] */
 			_In_  ID3D12GraphicsCommandList *pCommandList
 			);
 

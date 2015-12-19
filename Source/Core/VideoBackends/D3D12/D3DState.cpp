@@ -101,8 +101,6 @@ public:
 	}
 };
 
-
-
 StateCache::StateCache()
 {
 	m_currentPsoDesc = {};
@@ -123,7 +121,6 @@ void StateCache::Init()
 	gx_state_cache.m_currentPsoDesc.SampleDesc.Count = g_ActiveConfig.iMultisamples;
 	gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = 0;
 
-
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
 
@@ -142,7 +139,6 @@ void StateCache::Init()
 		// In either case, we want to re-create the disk cache. This should not be a frequent occurence.
 
 		g_pso_disk_cache.Close();
-
 
 		for (auto it : gx_state_cache._smallPsoMap)
 		{
@@ -372,7 +368,6 @@ inline D3D12_DEPTH_STENCIL_DESC StateCache::GetDesc12(ZMode state)
 
 	return depthdc;
 }
-
 
 HRESULT StateCache::GetPipelineStateObjectFromCache(D3D12_GRAPHICS_PIPELINE_STATE_DESC* psoDesc, ID3D12PipelineState** pso)
 {

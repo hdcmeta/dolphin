@@ -600,8 +600,6 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 	}
 	else // if (type == POKE_Z)
 	{
-		// D3D12TODO: Validate this.
-
 		// TODO: The first five PE registers may change behavior of EFB pokes, this isn't implemented, yet.
 
 		D3D12_VIEWPORT vp12 = { 0.0f, 0.0f, (float)GetTargetWidth(), (float)GetTargetHeight(),
@@ -628,7 +626,6 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		return 0;
 	}
 }
-
 
 void Renderer::SetViewport()
 {
@@ -1242,7 +1239,6 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 	PixelShaderCache::GetConstantBuffer12();
 	GeometryShaderCache::GetConstantBuffer12();
 
-	// D3D12TODO: Detect if PSO 'actually' changed.
 	if (D3D::commandListMgr->dirtyPso || pOldVertextFormat != reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat()))
 	{
 		pOldVertextFormat = reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat());
@@ -1510,8 +1506,6 @@ void Renderer::BBoxWrite(int index, u16 _value)
 
 void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D* src_texture, u32 src_width, u32 src_height, float Gamma)
 {
-	// D3D12TODO: Does 3D work?
-
 	if (g_ActiveConfig.iStereoMode == STEREO_SBS || g_ActiveConfig.iStereoMode == STEREO_TAB)
 	{
 		TargetRectangle leftRc, rightRc;

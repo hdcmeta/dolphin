@@ -28,23 +28,13 @@ const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
 VertexShaderUid VertexShaderCache::last_uid = {};
 UidChecker<VertexShaderUid,ShaderCode> VertexShaderCache::vertex_uid_checker;
 
-static ID3D11VertexShader* SimpleVertexShader = nullptr;
 static D3DBlob* SimpleVertexShaderBlob = {};
-static ID3D11VertexShader* ClearVertexShader = nullptr;
 static D3DBlob* ClearVertexShaderBlob = {};
-static ID3D11InputLayout* SimpleLayout = nullptr;
 static D3D12_INPUT_LAYOUT_DESC SimpleLayout12 = {};
-static ID3D11InputLayout* ClearLayout = nullptr;
 static D3D12_INPUT_LAYOUT_DESC ClearLayout12 = {};
 
 LinearDiskCache<VertexShaderUid, u8> g_vs_disk_cache;
 
-#ifdef USE_D3D11
-ID3D11VertexShader* VertexShaderCache::GetSimpleVertexShader() { return SimpleVertexShader; }
-ID3D11VertexShader* VertexShaderCache::GetClearVertexShader() { return ClearVertexShader; }
-ID3D11InputLayout* VertexShaderCache::GetSimpleInputLayout() { return SimpleLayout; }
-ID3D11InputLayout* VertexShaderCache::GetClearInputLayout() { return ClearLayout; }
-#endif
 D3D12_SHADER_BYTECODE VertexShaderCache::GetSimpleVertexShader12()
 {
 	D3D12_SHADER_BYTECODE shader = {};
@@ -63,10 +53,6 @@ D3D12_SHADER_BYTECODE VertexShaderCache::GetClearVertexShader12()
 }
 D3D12_INPUT_LAYOUT_DESC VertexShaderCache::GetSimpleInputLayout12() { return SimpleLayout12; }
 D3D12_INPUT_LAYOUT_DESC VertexShaderCache::GetClearInputLayout12() { return ClearLayout12; }
-
-#ifdef USE_D3D11
-ID3D11Buffer* vscbuf = nullptr;
-#endif
 
 ID3D12Resource* vscbuf12 = nullptr;
 D3D12_GPU_VIRTUAL_ADDRESS vscbuf12GPUVA = {};

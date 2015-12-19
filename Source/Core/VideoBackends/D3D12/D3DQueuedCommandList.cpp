@@ -33,6 +33,7 @@ namespace DX12
 					case D3DQueueItemType::ClearDepthStencilView:
 					{
 						pCommandList->ClearDepthStencilView(reinterpret_cast<D3DQueueItem*>(item)->ClearDepthStencilView.DepthStencilView, D3D12_CLEAR_FLAG_DEPTH, 0.f, 0, NULL, 0);
+						
 						item += sizeof(ClearDepthStencilViewArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -41,6 +42,7 @@ namespace DX12
 					{
 						float clearColor[4] = { 0.f, 0.f, 0.f, 1.f };
 						pCommandList->ClearRenderTargetView(reinterpret_cast<D3DQueueItem*>(item)->ClearRenderTargetView.RenderTargetView, clearColor, NULL, 0);
+						
 						item += sizeof(ClearRenderTargetViewArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -57,7 +59,6 @@ namespace DX12
 							);
 
 						item += sizeof(CopyBufferRegionArguments) + sizeof(D3DQueueItemType) * 2;
-
 						break;
 					}
 
@@ -86,7 +87,6 @@ namespace DX12
 							);
 
 						item += sizeof(CopyTextureRegionArguments) + sizeof(D3DQueueItemType) * 2;
-						
 						break;
 					}
 
@@ -101,7 +101,6 @@ namespace DX12
 							);
 
 						item += sizeof(DrawIndexedInstancedArguments) + sizeof(D3DQueueItemType) * 2;
-
 						break;
 					}
 
@@ -115,7 +114,6 @@ namespace DX12
 							);
 
 						item += sizeof(DrawInstancedArguments) + sizeof(D3DQueueItemType) * 2;
-
 						break;
 					}
 
@@ -124,7 +122,6 @@ namespace DX12
 						pCommandList->IASetPrimitiveTopology(reinterpret_cast<D3DQueueItem*>(item)->IASetPrimitiveTopology.PrimitiveTopology);
 
 						item += sizeof(IASetPrimitiveTopologyArguments) + sizeof(D3DQueueItemType) * 2;
-
 						break;
 					}
 
@@ -270,6 +267,7 @@ namespace DX12
 					case D3DQueueItemType::CloseCommandList:
 					{
 						CheckHR(pCommandList->Close());
+
 						item += sizeof(CloseCommandListArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -277,6 +275,7 @@ namespace DX12
 					case D3DQueueItemType::ExecuteCommandList:
 					{
 						parentQueuedCommandList->_pCommandQueue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList**>(&pCommandList));
+
 						item += sizeof(ExecuteCommandListArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -284,6 +283,7 @@ namespace DX12
 					case D3DQueueItemType::Present:
 					{
 						CheckHR(reinterpret_cast<D3DQueueItem*>(item)->Present.pSwapChain->Present(reinterpret_cast<D3DQueueItem*>(item)->Present.SyncInterval, reinterpret_cast<D3DQueueItem*>(item)->Present.Flags));
+						
 						item += sizeof(PresentArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -291,6 +291,7 @@ namespace DX12
 					case D3DQueueItemType::ResetCommandList:
 					{
 						CheckHR(pCommandList->Reset(reinterpret_cast<D3DQueueItem*>(item)->ResetCommandList.pAllocator, nullptr));
+						
 						item += sizeof(ResetCommandListArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -298,6 +299,7 @@ namespace DX12
 					case D3DQueueItemType::ResetCommandAllocator:
 					{
 						CheckHR(reinterpret_cast<D3DQueueItem*>(item)->ResetCommandAllocator.pAllocator->Reset());
+						
 						item += sizeof(ResetCommandAllocatorArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -305,6 +307,7 @@ namespace DX12
 					case D3DQueueItemType::FenceGpuSignal:
 					{
 						CheckHR(parentQueuedCommandList->_pCommandQueue->Signal(reinterpret_cast<D3DQueueItem*>(item)->FenceGpuSignal.pFence, reinterpret_cast<D3DQueueItem*>(item)->FenceGpuSignal.fenceValue));
+						
 						item += sizeof(FenceGpuSignalArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -312,6 +315,7 @@ namespace DX12
 					case D3DQueueItemType::FenceCpuSignal:
 					{
 						CheckHR(reinterpret_cast<D3DQueueItem*>(item)->FenceCpuSignal.pFence->Signal(reinterpret_cast<D3DQueueItem*>(item)->FenceCpuSignal.fenceValue));
+						
 						item += sizeof(FenceCpuSignalArguments) + sizeof(D3DQueueItemType) * 2;
 						break;
 					}
@@ -404,6 +408,7 @@ namespace DX12
 		item.Present.pSwapChain = pSwapChain;
 		item.Present.Flags = Flags;
 		item.Present.SyncInterval = SyncInterval;
+
 		*reinterpret_cast<D3DQueueItem*>(_queueArrayBack) = item;
 
 		_queueArrayBack += sizeof(PresentArguments) + sizeof(D3DQueueItemType) * 2;

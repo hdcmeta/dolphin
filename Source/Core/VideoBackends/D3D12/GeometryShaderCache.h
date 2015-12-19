@@ -45,7 +45,6 @@ public:
 		return D3D12_SHADER_BYTECODE();
 	}
 
-
 	static void GetConstantBuffer12(); // This call on D3D12 actually sets the constant buffer, no need to return it.
 
 	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetCurrentPrimitiveTopology();

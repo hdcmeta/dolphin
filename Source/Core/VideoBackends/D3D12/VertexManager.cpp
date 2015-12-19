@@ -83,7 +83,7 @@ void VertexManager::CreateDeviceObjects()
 	CheckHR(m_indexBuffer->Map(0, nullptr, &m_indexBufferData));
 
 	SetIndexBuffer();
-	
+
 	// Use CPU-only memory if the GPU won't be reading from the buffers,
 	// since reading upload heaps on the CPU is slow..
 	vertexCpuBuffer = new u8[MAXVBUFFERSIZE];

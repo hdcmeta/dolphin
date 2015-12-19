@@ -19,7 +19,7 @@ class D3DTexture2D
 {
 public:
 	// there are two ways to create a D3DTexture2D object:
-	//     either create an ID3D11Texture2D object, pass it to the constructor and specify what views to create
+	//     either create an ID3D12Resource object, pass it to the constructor and specify what views to create
 	//     or let the texture automatically be created by D3DTexture2D::Create
 
 	D3DTexture2D(ID3D12Resource* texptr, D3D11_BIND_FLAG bind, DXGI_FORMAT srv_format = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT dsv_format = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT rtv_format = DXGI_FORMAT_UNKNOWN, bool multisampled = false, D3D12_RESOURCE_STATES resourceState = D3D12_RESOURCE_STATE_COMMON);

@@ -163,8 +163,6 @@ bool TextureCache::TCacheEntry::Save(const std::string& filename, unsigned int l
 	return saved_png;
 }
 
-//D3D12TODO: Implement this on D3D12.
-
 void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 	const TCacheEntryBase* source,
 	const MathUtil::Rectangle<int> &srcrect,

@@ -175,9 +175,7 @@ namespace DX12
 		}
 
 		ResetCommandListWithIdleCommandAllocator();
-
 #endif
-
 
 		SetInitialCommandListState();
 
@@ -223,15 +221,11 @@ namespace DX12
 
 	void D3DCommandListManager::WaitForQueuedWorkToBeExecutedOnGPU()
 	{
-		
-
 		// Wait for GPU to finish all outstanding work.
 		_queueFenceValue++;
 #ifdef USE_D3D12_QUEUED_COMMAND_LISTS
 		_pQueuedCommandList->QueueExecute();
 		_pQueuedCommandList->QueueFenceGpuSignal(_pQueueFence, _queueFenceValue);
-
-		
 
 		_pQueuedCommandList->ProcessQueuedItems();
 #else
@@ -354,7 +348,6 @@ namespace DX12
 #endif
 		WaitOnCPUForFence(_pQueueFence, _queueFenceValue);
 	}
-
 
 	D3DCommandListManager::~D3DCommandListManager()
 	{

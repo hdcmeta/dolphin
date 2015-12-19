@@ -452,7 +452,7 @@ void PixelShaderCache::GetConstantBuffer12()
 		D3D::commandListMgr->dirtyPSCBV = true;
 	}
 
-    if (D3D::commandListMgr->dirtyPSCBV)
+	if (D3D::commandListMgr->dirtyPSCBV)
 	{
 		D3D::currentCommandList->SetGraphicsRootConstantBufferView(
 			DESCRIPTOR_TABLE_PS_CBVONE,

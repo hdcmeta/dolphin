@@ -411,7 +411,6 @@ namespace DX12
 		CheckHR(device12->QueryInterface(&debug12));
 	}
 
-
 	// prevent DXGI from responding to Alt+Enter, unfortunately DXGI_MWA_NO_ALT_ENTER
 	// does not work so we disable all monitoring of window messages. However this
 	// may make it more difficult for DXGI to handle display mode changes.
@@ -539,7 +538,7 @@ void CreateDescriptorHeaps()
 void CreateRootSignatures()
 {
 	D3D12_DESCRIPTOR_RANGE descRangeSRV = {
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,          // D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,     // D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
 		8,                                   // UINT NumDescriptors;
 		0,                                   // UINT BaseShaderRegister;
 		0,                                   // UINT RegisterSpace;
@@ -547,7 +546,7 @@ void CreateRootSignatures()
 	};
 
 	D3D12_DESCRIPTOR_RANGE descRangeSampler = {
-		D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,      // D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
+		D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, // D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
 		8,                                   // UINT NumDescriptors;
 		0,                                   // UINT BaseShaderRegister;
 		0,                                   // UINT RegisterSpace;
@@ -590,7 +589,6 @@ void CreateRootSignatures()
 	}
 
 	// D3D12TODO: Add bounding box UAV to root signature.
-
 
 	D3D12_ROOT_SIGNATURE_DESC textRootSignatureDesc = {};
 	textRootSignatureDesc.pParameters = rootParameters;

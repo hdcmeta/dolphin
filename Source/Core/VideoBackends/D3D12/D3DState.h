@@ -110,7 +110,6 @@ private:
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC m_currentPsoDesc;
 
-	// D3D12TODO: Improve this?
 	struct hash_pso_desc
 	{
 		size_t operator()(const D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc) const
@@ -119,7 +118,6 @@ private:
 		}
 	};
 
-	// D3D12TODO: Improve this?
 	struct equality_pipeline_state_desc
 	{
 		bool operator()(const D3D12_GRAPHICS_PIPELINE_STATE_DESC lhs, const D3D12_GRAPHICS_PIPELINE_STATE_DESC rhs) const

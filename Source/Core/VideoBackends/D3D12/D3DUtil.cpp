@@ -655,17 +655,17 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 		tex_quad_data.S = S;
 		tex_quad_data.G = G;
 	}
+
 	UINT stride = sizeof(STQVertex);
 	UINT offset = 0;
 
 	D3D::currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	D3D::commandListMgr->currentTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 
-
 	D3D12_VERTEX_BUFFER_VIEW vbView = {
 		util_vbuf_stq->GetBuffer12()->GetGPUVirtualAddress(), // D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
-		0x10000,                                           // UINT SizeInBytes; This is the size of the entire buffer, not just the size of the vertex data for one draw call, since the offsetting is done in the draw call itself.
-		stride                                            // UINT StrideInBytes;
+		0x10000,                                              // UINT SizeInBytes; This is the size of the entire buffer, not just the size of the vertex data for one draw call, since the offsetting is done in the draw call itself.
+		stride                                                // UINT StrideInBytes;
 	};
 
 	D3D::currentCommandList->IASetVertexBuffers(0, 1, &vbView);
@@ -679,8 +679,8 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
 		defaultRootSignature,                             // ID3D12RootSignature *pRootSignature;
-		VShader12,				                          // D3D12_SHADER_BYTECODE VS;
-		PShader12,		                                  // D3D12_SHADER_BYTECODE PS;
+		VShader12,                                        // D3D12_SHADER_BYTECODE VS;
+		PShader12,                                        // D3D12_SHADER_BYTECODE PS;
 		{},                                               // D3D12_SHADER_BYTECODE DS;
 		{},                                               // D3D12_SHADER_BYTECODE HS;
 		GShader12,                                        // D3D12_SHADER_BYTECODE GS;
@@ -713,7 +713,7 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 	// Thus, set the scissor rect to the max texture size, then reset it to the current scissor rect to avoid
 	// dirtying state.
 
-	// 2 ^ D3D12_MAX_TEXTURE_DIMENSION_2_TO_EXP = 131072	
+	// 2 ^ D3D12_MAX_TEXTURE_DIMENSION_2_TO_EXP = 131072
 	D3D::currentCommandList->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, 131072, 131072));
 
 	D3D::currentCommandList->DrawInstanced(4, 1, stq_offset, 0);
@@ -833,8 +833,8 @@ void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
 		defaultRootSignature,                             // ID3D12RootSignature *pRootSignature;
-		VertexShaderCache::GetClearVertexShader12(),	  // D3D12_SHADER_BYTECODE VS;
-		PixelShaderCache::GetClearProgram12(),		      // D3D12_SHADER_BYTECODE PS;
+		VertexShaderCache::GetClearVertexShader12(),      // D3D12_SHADER_BYTECODE VS;
+		PixelShaderCache::GetClearProgram12(),            // D3D12_SHADER_BYTECODE PS;
 		{},                                               // D3D12_SHADER_BYTECODE DS;
 		{},                                               // D3D12_SHADER_BYTECODE HS;
 		g_ActiveConfig.iStereoMode > 0 ?
