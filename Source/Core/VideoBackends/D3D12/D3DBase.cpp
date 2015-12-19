@@ -2,6 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include <algorithm>
+
 #include "Common/StringUtil.h"
 #include "VideoBackends/D3D12/D3DBase.h"
 #include "VideoBackends/D3D12/D3DCommandListManager.h"
@@ -225,11 +227,6 @@ namespace DX12
 			return D3D_FEATURE_LEVEL_11_0;
 		}
 
-		DXGI_SAMPLE_DESC GetAAMode(int index)
-		{
-			return aa_modes[index];
-		}
-
 		HRESULT Create(HWND wnd)
 		{
 			hWnd = wnd;
@@ -284,9 +281,14 @@ namespace DX12
 
 			// get supported AA modes
 			aa_modes = EnumAAModes(adapter);
-			if (g_Config.iMultisampleMode >= (int)aa_modes.size())
+
+			if (std::find_if(
+				aa_modes.begin(),
+				aa_modes.end(),
+				[](const DXGI_SAMPLE_DESC& desc) {return desc.Count == g_Config.iMultisamples; }
+				) == aa_modes.end())
 			{
-				g_Config.iMultisampleMode = 0;
+				g_Config.iMultisamples = 1;
 				UpdateActiveConfig();
 			}
 

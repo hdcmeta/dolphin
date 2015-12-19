@@ -31,7 +31,7 @@ ID3D12Resource* &FramebufferManager::GetEFBDepthStagingBuffer12() { return m_efb
 
 D3DTexture2D* &FramebufferManager::GetResolvedEFBColorTexture()
 {
-	if (g_ActiveConfig.iMultisampleMode)
+	if (g_ActiveConfig.iMultisamples > 1)
 	{
 		m_efb.resolved_color_tex->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RESOLVE_DEST);
 		m_efb.color_tex->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
@@ -49,7 +49,7 @@ D3DTexture2D* &FramebufferManager::GetResolvedEFBColorTexture()
 
 D3DTexture2D* &FramebufferManager::GetResolvedEFBDepthTexture()
 {
-	if (g_ActiveConfig.iMultisampleMode)
+	if (g_ActiveConfig.iMultisamples > 1)
 	{
 		m_efb.resolved_depth_tex->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RESOLVE_DEST);
 		m_efb.depth_tex->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
@@ -79,7 +79,10 @@ FramebufferManager::FramebufferManager()
 		m_target_width = 1;
 	}
 
-	DXGI_SAMPLE_DESC sample_desc = D3D::GetAAMode(g_ActiveConfig.iMultisampleMode);
+	DXGI_SAMPLE_DESC sample_desc;
+	sample_desc.Count = g_ActiveConfig.iMultisamples;
+	sample_desc.Quality = 0;
+
 	ID3D12Resource* buf12;
 	D3D12_RESOURCE_DESC texdesc12;
 	D3D12_CLEAR_VALUE optimizedClearValueRTV = { DXGI_FORMAT_R8G8B8A8_UNORM, { 0.0f, 0.0f, 0.0f, 1.0f } };
@@ -137,7 +140,7 @@ FramebufferManager::FramebufferManager()
 
 	D3D::SetDebugObjectName12(m_efb.depth_staging_buf12, "EFB depth staging texture (used for Renderer::AccessEFB)");
 
-	if (g_ActiveConfig.iMultisampleMode)
+	if (g_ActiveConfig.iMultisamples > 1)
 	{
 		// Framebuffer resolve textures (color+depth)
 		texdesc12 = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_target_width, m_target_height, m_efb.slices, 1);

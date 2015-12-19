@@ -120,16 +120,9 @@ void StateCache::Init()
 	gx_state_cache.m_currentPsoDesc.pRootSignature = D3D::defaultRootSignature;
 
 	// Multi-sample configuration isn't available at time of StateCache construction, so fille it in now.
-	if (g_ActiveConfig.iMultisampleMode)
-	{
-		gx_state_cache.m_currentPsoDesc.SampleDesc.Count = DX12::D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count;
-		gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = DX12::D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Quality;
-	}
-	else
-	{
-		gx_state_cache.m_currentPsoDesc.SampleDesc.Count = 1;
-		gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = 0;
-	}
+	gx_state_cache.m_currentPsoDesc.SampleDesc.Count = g_ActiveConfig.iMultisamples;
+	gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = 0;
+
 
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));

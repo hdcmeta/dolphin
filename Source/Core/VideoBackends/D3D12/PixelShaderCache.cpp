@@ -298,7 +298,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGBA6ToRGB812(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
-	if (!multisampled || D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count == 1)
+	if (!multisampled || g_ActiveConfig.iMultisamples == 1)
 	{
 		if (!s_rgba6_to_rgb8Blob[0])
 		{
@@ -311,7 +311,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGBA6ToRGB812(bool multisampled)
 	else if (!s_rgba6_to_rgb8Blob[1])
 	{
 		// create MSAA shader for current AA mode
-		std::string buf = StringFromFormat(reint_rgba6_to_rgb8_msaa, D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count);
+		std::string buf = StringFromFormat(reint_rgba6_to_rgb8_msaa, g_ActiveConfig.iMultisamples);
 
 		D3D::CompilePixelShader(buf, &s_rgba6_to_rgb8Blob[1]);
 		bytecode = { s_rgba6_to_rgb8Blob[1]->Data(), s_rgba6_to_rgb8Blob[1]->Size() };
@@ -323,7 +323,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGB8ToRGBA612(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
-	if (!multisampled || D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count == 1)
+	if (!multisampled || g_ActiveConfig.iMultisamples == 1)
 	{
 		if (!s_rgb8_to_rgba6Blob[0])
 		{
@@ -336,7 +336,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGB8ToRGBA612(bool multisampled)
 	else if (!s_rgb8_to_rgba6Blob[1])
 	{
 		// create MSAA shader for current AA mode
-		std::string buf = StringFromFormat(reint_rgb8_to_rgba6_msaa, D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count);
+		std::string buf = StringFromFormat(reint_rgb8_to_rgba6_msaa, g_ActiveConfig.iMultisamples);
 
 		D3D::CompilePixelShader(buf, &s_rgb8_to_rgba6Blob[1]);
 		bytecode = { s_rgb8_to_rgba6Blob[1]->Data(), s_rgb8_to_rgba6Blob[1]->Size() };
@@ -349,7 +349,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorCopyProgram12(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
-	if (!multisampled || D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count == 1)
+	if (!multisampled || g_ActiveConfig.iMultisamples == 1)
 	{
 		bytecode = { s_ColorCopyProgramBlob[0]->Data(), s_ColorCopyProgramBlob[0]->Size() };
 	}
@@ -360,7 +360,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorCopyProgram12(bool multisampled)
 	else
 	{
 		// create MSAA shader for current AA mode
-		std::string buf = StringFromFormat(color_copy_program_code_msaa, D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count);
+		std::string buf = StringFromFormat(color_copy_program_code_msaa, g_ActiveConfig.iMultisamples);
 
 		D3D::CompilePixelShader(buf, &s_ColorCopyProgramBlob[1]);
 		bytecode = { s_ColorCopyProgramBlob[1]->Data(), s_ColorCopyProgramBlob[1]->Size() };
@@ -373,7 +373,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorMatrixProgram12(bool multisample
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
-	if (!multisampled || D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count == 1)
+	if (!multisampled || g_ActiveConfig.iMultisamples == 1)
 	{
 		bytecode = { s_ColorMatrixProgramBlob[0]->Data(), s_ColorMatrixProgramBlob[0]->Size() };
 	}
@@ -384,7 +384,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorMatrixProgram12(bool multisample
 	else
 	{
 		// create MSAA shader for current AA mode
-		std::string buf = StringFromFormat(color_matrix_program_code_msaa, D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count);
+		std::string buf = StringFromFormat(color_matrix_program_code_msaa, g_ActiveConfig.iMultisamples);
 
 		D3D::CompilePixelShader(buf, &s_ColorMatrixProgramBlob[1]);
 		bytecode = { s_ColorMatrixProgramBlob[1]->Data(), s_ColorMatrixProgramBlob[1]->Size() };
@@ -397,7 +397,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthMatrixProgram12(bool multisample
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
-	if (!multisampled || D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count == 1)
+	if (!multisampled || g_ActiveConfig.iMultisamples == 1)
 	{
 		bytecode = { s_DepthMatrixProgramBlob[0]->Data(), s_DepthMatrixProgramBlob[0]->Size() };
 	}
@@ -408,7 +408,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthMatrixProgram12(bool multisample
 	else
 	{
 		// create MSAA shader for current AA mode
-		std::string buf = StringFromFormat(depth_matrix_program_msaa, D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count);
+		std::string buf = StringFromFormat(depth_matrix_program_msaa, g_ActiveConfig.iMultisamples);
 
 		D3D::CompilePixelShader(buf, &s_DepthMatrixProgramBlob[1]);
 
