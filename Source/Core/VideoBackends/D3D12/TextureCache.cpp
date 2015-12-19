@@ -223,7 +223,8 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 		srcentry->config.width, srcentry->config.height,
 		PixelShaderCache::GetColorCopyProgram12(false),
 		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), 1.0, 0);
+		VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), 1.0, 0,
+		DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled());
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	FramebufferManager::GetEFBDepthTexture()->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -355,7 +356,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 		VertexShaderCache::GetSimpleVertexShader12(),
 		VertexShaderCache::GetSimpleInputLayout12(),
 		GeometryShaderCache::GetCopyGeometryShader12(),
-		1.0f
+		1.0f, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled()
 		);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -533,8 +534,9 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 		GeometryShaderCache::GetCopyGeometryShader12(),
 		1.0f,
 		0,
-		DXGI_FORMAT_R8G8B8A8_UNORM, // D3D12TODO: Do we need to ever set this to anything else (is the RT ever not this?)
-		true
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		true,
+		static_cast<TCacheEntry*>(entry)->texture->GetMultisampled()
 		);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::currentCommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);

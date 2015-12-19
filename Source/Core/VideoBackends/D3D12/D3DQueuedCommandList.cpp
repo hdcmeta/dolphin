@@ -253,6 +253,20 @@ namespace DX12
 						break;
 					}
 
+					case D3DQueueItemType::ResolveSubresource:
+					{
+						pCommandList->ResolveSubresource(
+							reinterpret_cast<D3DQueueItem*>(item)->ResolveSubresource.pDstResource,
+							reinterpret_cast<D3DQueueItem*>(item)->ResolveSubresource.DstSubresource,
+							reinterpret_cast<D3DQueueItem*>(item)->ResolveSubresource.pSrcResource,
+							reinterpret_cast<D3DQueueItem*>(item)->ResolveSubresource.SrcSubresource,
+							reinterpret_cast<D3DQueueItem*>(item)->ResolveSubresource.Format
+							);
+
+						item += sizeof(ResolveSubresourceArguments) + sizeof(D3DQueueItemType) * 2;
+						break;
+					}
+
 					case D3DQueueItemType::CloseCommandList:
 					{
 						CheckHR(pCommandList->Close());

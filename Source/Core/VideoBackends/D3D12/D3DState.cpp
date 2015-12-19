@@ -50,6 +50,12 @@ public:
 		desc.VS = VertexShaderCache::GetShaderFromUid(key.vsUid);
 		desc.GS = GeometryShaderCache::GetShaderFromUid(key.gsUid);
 
+		if (!desc.PS.pShaderBytecode || !desc.VS.pShaderBytecode)
+		{
+			cacheIsCorrupted = true;
+			return;
+		}
+
 		desc.BlendState = StateCache::GetDesc12(key.BlendState);
 		desc.DepthStencilState = StateCache::GetDesc12(key.DepthStencilState);
 		desc.RasterizerState = StateCache::GetDesc12(key.RasterizerState);
@@ -106,14 +112,24 @@ StateCache::StateCache()
 	m_currentPsoDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF;
 	m_currentPsoDesc.NumRenderTargets = 1;
 	m_currentPsoDesc.SampleMask = UINT_MAX;
-	m_currentPsoDesc.SampleDesc.Count = 1;
-	m_currentPsoDesc.SampleDesc.Quality = 0;
 }
 
 void StateCache::Init()
 {
 	// Root signature isn't available at time of StateCache construction, so fill it in now.
 	gx_state_cache.m_currentPsoDesc.pRootSignature = D3D::defaultRootSignature;
+
+	// Multi-sample configuration isn't available at time of StateCache construction, so fille it in now.
+	if (g_ActiveConfig.iMultisampleMode)
+	{
+		gx_state_cache.m_currentPsoDesc.SampleDesc.Count = DX12::D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Count;
+		gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = DX12::D3D::GetAAMode(g_ActiveConfig.iMultisampleMode).Quality;
+	}
+	else
+	{
+		gx_state_cache.m_currentPsoDesc.SampleDesc.Count = 1;
+		gx_state_cache.m_currentPsoDesc.SampleDesc.Quality = 0;
+	}
 
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));

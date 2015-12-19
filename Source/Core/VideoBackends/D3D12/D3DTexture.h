@@ -39,6 +39,8 @@ public:
 
 	D3D12_RESOURCE_STATES GetResourceUsageState() { return resourceState; }
 
+	bool GetMultisampled() { return multisampled; }
+
 private:
 	~D3DTexture2D();
 
@@ -52,6 +54,8 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE rtv12;
 
 	D3D12_RESOURCE_STATES resourceState;
+
+	bool multisampled;
 
 	UINT ref;
 };

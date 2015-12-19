@@ -457,7 +457,9 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			D3D12_SHADER_BYTECODE(),
 			1.0f,
 			0,
-			DXGI_FORMAT_R32_FLOAT
+			DXGI_FORMAT_R32_FLOAT,
+			false,
+			FramebufferManager::GetEFBDepthReadTexture()->GetMultisampled()
 			);
 
 		// copy to system memory
@@ -588,7 +590,8 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			  (float)RectToLock.right  * 2.f / GetTargetWidth() - 1.f,
 			- (float)RectToLock.bottom * 2.f / GetTargetHeight() + 1.f,
 			&resetblendstate12,
-			&resetdepthstate12
+			&resetdepthstate12,
+			FramebufferManager::GetEFBColorTexture()->GetMultisampled()
 			);
 
 		// Restores proper viewport/scissor settings.
@@ -616,7 +619,8 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			(float)RectToLock.right  * 2.f / GetTargetWidth() - 1.f,
 			-(float)RectToLock.bottom * 2.f / GetTargetHeight() + 1.f,
 			&clearblendstates12[3],
-			&cleardepthstates12[1]
+			&cleardepthstates12[1],
+			FramebufferManager::GetEFBColorTexture()->GetMultisampled()
 			);
 
 		// Restores proper viewport/scissor settings.
@@ -694,7 +698,7 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaE
 
 	// Color is passed in bgra mode so we need to convert it to rgba
 	u32 rgbaColor = (color & 0xFF00FF00) | ((color >> 16) & 0xFF) | ((color << 16) & 0xFF0000);
-	D3D::drawClearQuad(rgbaColor, 1.0f - (z & 0xFFFFFF) / 16777216.0f, pBlendDesc, pDepthStencilDesc);
+	D3D::drawClearQuad(rgbaColor, 1.0f - (z & 0xFFFFFF) / 16777216.0f, pBlendDesc, pDepthStencilDesc, FramebufferManager::GetEFBColorTexture()->GetMultisampled());
 
 	// Restores proper viewport/scissor settings.
 	g_renderer->RestoreAPIState();
@@ -737,7 +741,11 @@ void Renderer::ReinterpretPixelData(unsigned int convtype)
 		VertexShaderCache::GetSimpleVertexShader12(),
 		VertexShaderCache::GetSimpleInputLayout12(),
 		GeometryShaderCache::GetCopyGeometryShader12(),
-		1.0f
+		1.0f,
+		0,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		false,
+		FramebufferManager::GetEFBColorTempTexture()->GetMultisampled()
 		);
 
 	// Restores proper viewport/scissor settings.
@@ -1512,11 +1520,13 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 		D3D12_VIEWPORT leftVp12 = { (float)leftRc.left, (float)leftRc.top, (float)leftRc.GetWidth(), (float)leftRc.GetHeight(), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
 		D3D12_VIEWPORT rightVp12 = { (float)rightRc.left, (float)rightRc.top, (float)rightRc.GetWidth(), (float)rightRc.GetHeight(), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
 
+		// Swap chain backbuffer is never multisampled..
+
 		D3D::currentCommandList->RSSetViewports(1, &leftVp12);
-		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 0);
+		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
 
 		D3D::currentCommandList->RSSetViewports(1, &rightVp12);
-		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 1);
+		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
 	}
 	else if (g_ActiveConfig.iStereoMode == STEREO_3DVISION)
 	{
@@ -1531,10 +1541,10 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 		D3D::currentCommandList->OMSetRenderTargets(1, &s_3d_vision_texture->GetRTV12(), FALSE, nullptr);
 
 		D3D::currentCommandList->RSSetViewports(1, &leftVp12);
-		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 0);
+		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
 
 		D3D::currentCommandList->RSSetViewports(1, &rightVp12);
-		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 1);
+		D3D::drawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), Gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
 
 		// Copy the left eye to the backbuffer, if Nvidia 3D Vision is enabled it should
 		// recognize the signature and automatically include the right eye frame.
@@ -1565,7 +1575,11 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 			VertexShaderCache::GetSimpleVertexShader12(),
 			VertexShaderCache::GetSimpleInputLayout12(),
 			D3D12_SHADER_BYTECODE(),
-			Gamma
+			Gamma,
+			0,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			false,
+			false // Backbuffer never multisampled.
 			);
 	}
 }

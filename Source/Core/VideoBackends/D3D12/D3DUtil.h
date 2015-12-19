@@ -80,9 +80,11 @@ namespace D3D
 						float Gamma = 1.0f,
 						u32 slice = 0,
 						DXGI_FORMAT rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
-						bool inheritSRVbinding = false);
-	void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc);
-	void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc);
+						bool inheritSRVbinding = false,
+						bool rtMultisampled = false
+						);
+	void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc, bool rtMultisampled);
+	void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc, bool rtMultisampled);
 }
 
 }

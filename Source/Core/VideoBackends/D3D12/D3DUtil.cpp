@@ -543,8 +543,12 @@ struct
 // ring buffer offsets
 int stq_offset, stsq_offset, cq_offset, clearq_offset;
 
+DXGI_SAMPLE_DESC sample_desc;
+
 void InitUtils()
 {
+	sample_desc = D3D::GetAAMode(g_ActiveConfig.iMultisampleMode);
+
 	util_vbuf_stq = new UtilVertexBuffer(0x10000);
 	util_vbuf_cq = new UtilVertexBuffer(0x10000);
 	util_vbuf_clearq = new UtilVertexBuffer(0x10000);
@@ -621,7 +625,9 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 	float Gamma,
 	u32 slice,
 	DXGI_FORMAT rtFormat,
-	bool inheritSRVbinding)
+	bool inheritSRVbinding,
+	bool rtMultisampled
+	)
 {
 	float sw = 1.0f / (float)SourceWidth;
 	float sh = 1.0f / (float)SourceHeight;
@@ -696,6 +702,11 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 		{ 1 /* UINT Count */, 0 /* UINT Quality */ }      // DXGI_SAMPLE_DESC SampleDesc
 	};
 
+	if (rtMultisampled)
+	{
+		psoDesc.SampleDesc = sample_desc;
+	}
+
 	ID3D12PipelineState *pPso = nullptr;
 	CheckHR(DX12::gx_state_cache.GetPipelineStateObjectFromCache(&psoDesc, &pPso));
 	
@@ -716,7 +727,7 @@ void drawShadedTexQuad(D3DTexture2D* texture,
 
 // Fills a certain area of the current render target with the specified color
 // destination coordinates normalized to (-1;1)
-void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc)
+void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc, bool rtMultisampled)
 {
 	ColVertex coords[4] = {
 		{ x1, y2, z, Color },
@@ -772,6 +783,11 @@ void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 		{ 1 /* UINT Count */, 0 /* UINT Quality */ }      // DXGI_SAMPLE_DESC SampleDesc
 	};
 
+	if (rtMultisampled)
+	{
+		psoDesc.SampleDesc = sample_desc;
+	}
+
 	ID3D12PipelineState *pPso = nullptr;
 	CheckHR(DX12::gx_state_cache.GetPipelineStateObjectFromCache(&psoDesc, &pPso));
 	
@@ -790,7 +806,7 @@ void drawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 	g_renderer->SetScissorRect(((Renderer*)g_renderer)->GetScissorRect());
 }
 
-void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc)
+void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH_STENCIL_DESC *pDepthStencilDesc, bool rtMultisampled)
 {
 	ClearVertex coords[4] = {
 		{-1.0f,  1.0f, z, Color},
@@ -841,6 +857,11 @@ void drawClearQuad(u32 Color, float z, D3D12_BLEND_DESC *pBlendDesc, D3D12_DEPTH
 		DXGI_FORMAT_D24_UNORM_S8_UINT,                    // DXGI_FORMAT DSVFormat
 		{ 1 /* UINT Count */, 0 /* UINT Quality */ }      // DXGI_SAMPLE_DESC SampleDesc
 	};
+
+	if (rtMultisampled)
+	{
+		psoDesc.SampleDesc = sample_desc;
+	}
 
 	ID3D12PipelineState *pPso = nullptr;
 	CheckHR(DX12::gx_state_cache.GetPipelineStateObjectFromCache(&psoDesc, &pPso));

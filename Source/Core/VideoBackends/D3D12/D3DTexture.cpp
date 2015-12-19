@@ -166,7 +166,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE &D3DTexture2D::GetRTV12() { return rtv12; }
 
 D3DTexture2D::D3DTexture2D(ID3D12Resource* texptr, D3D11_BIND_FLAG bind,
 							DXGI_FORMAT srv_format, DXGI_FORMAT dsv_format, DXGI_FORMAT rtv_format, bool multisampled, D3D12_RESOURCE_STATES resourceState)
-							: ref(1), tex12(texptr), resourceState(resourceState),
+							: ref(1), tex12(texptr), resourceState(resourceState), multisampled(multisampled),
 							srv12cpu({}), srv12gpu({}), srv12gpuCpuShadow({}), rtv12({}), dsv12({})
 {
 	D3D12_SRV_DIMENSION srv_dim12 = multisampled ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;

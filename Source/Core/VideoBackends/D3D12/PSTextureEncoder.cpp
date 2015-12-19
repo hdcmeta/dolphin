@@ -167,7 +167,6 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 		else
 			D3D::SetPointCopySampler();
 
-		// D3D12TODO: Support PSTextureEncoder::Encode
 		D3D::drawShadedTexQuad(pEFB,
 			targetRect.AsRECT(),
 			Renderer::GetTargetWidth(),
@@ -178,7 +177,9 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 			D3D12_SHADER_BYTECODE(),
 			1.0f,
 			0,
-			DXGI_FORMAT_B8G8R8A8_UNORM
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			false,
+			false /* Render target is not multisampled */
 			);
 
 		// Copy to staging buffer
