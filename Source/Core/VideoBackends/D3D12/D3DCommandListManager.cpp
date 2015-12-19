@@ -251,7 +251,7 @@ namespace DX12
 			UINT currentCommandAllocatorCount = static_cast<UINT>(_commandAllocatorLists[0].size());
 
 			// Hard upper-bound, in case we are pathologically rendering at 2000 FPS, and wanting to create hundreds of Command Allocators.
-			if (currentCommandAllocatorCount < 64) 
+			if (currentCommandAllocatorCount < 4) 
 			{
 				for (UINT i = currentCommandAllocatorCount; i < currentCommandAllocatorCount * 2; i++)
 				{
