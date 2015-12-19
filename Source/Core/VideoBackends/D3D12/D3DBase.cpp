@@ -255,14 +255,14 @@ namespace DX12
 			IDXGIAdapter* adapter;
 			IDXGIOutput* output;
 			hr = PCreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
-			if (FAILED(hr)) MessageBox(wnd, _T("Failed to create IDXGIFactory object"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
+			if (FAILED(hr)) MessageBox(wnd, _T("Failed to create IDXGIFactory object"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 
 			hr = factory->EnumAdapters(g_ActiveConfig.iAdapter, &adapter);
 			if (FAILED(hr))
 			{
 				// try using the first one
 				hr = factory->EnumAdapters(0, &adapter);
-				if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate adapters"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
+				if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate adapters"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 			}
 
 			// TODO: Make this configurable
@@ -278,7 +278,7 @@ namespace DX12
 					_T("Failed to enumerate outputs!\n")
 					_T("This usually happens when you've set your video adapter to the Nvidia GPU in an Optimus-equipped system.\n")
 					_T("Set Dolphin to use the high-performance graphics in Nvidia's drivers instead and leave Dolphin's video adapter set to the Intel GPU."),
-					_T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
+					_T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 				SAFE_RELEASE(firstadapter);
 			}
 
@@ -308,7 +308,7 @@ namespace DX12
 			mode_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			mode_desc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 			hr = output->FindClosestMatchingMode(&mode_desc, &swap_chain_desc.BufferDesc, nullptr);
-			if (FAILED(hr)) MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
+			if (FAILED(hr)) MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 
 			if (swap_chain_desc.Windowed)
 			{
@@ -414,7 +414,7 @@ namespace DX12
 	// does not work so we disable all monitoring of window messages. However this
 	// may make it more difficult for DXGI to handle display mode changes.
 	hr = factory->MakeWindowAssociation(wnd, DXGI_MWA_NO_WINDOW_CHANGES);
-	if (FAILED(hr)) MessageBox(wnd, _T("Failed to associate the window"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
+	if (FAILED(hr)) MessageBox(wnd, _T("Failed to associate the window"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 
 	SAFE_RELEASE(factory);
 	SAFE_RELEASE(output);
