@@ -34,6 +34,9 @@ SWVertexLoader::~SWVertexLoader()
 
 void SWVertexLoader::SetFormat(u8 attributeIndex, u8 primitiveType)
 {
+	// Super Mario Sunshine requires those to be zero for those debug boxes.
+	memset(&m_Vertex.color, 0, sizeof(m_Vertex.color));
+
 	m_attributeIndex = attributeIndex;
 
 	VertexLoaderUID uid(g_main_cp_state.vtx_desc, g_main_cp_state.vtx_attr[m_attributeIndex]);
@@ -193,6 +196,7 @@ void SWVertexLoader::LoadVertex()
 	// transform this vertex so that it can be used for rasterization (outVertex)
 	OutputVertexData* outVertex = m_SetupUnit->GetVertex();
 	TransformUnit::TransformPosition(&m_Vertex, outVertex);
+	memset(&outVertex->normal, 0, sizeof(outVertex->normal));
 	if (g_main_cp_state.vtx_desc.Normal != NOT_PRESENT)
 	{
 		TransformUnit::TransformNormal(&m_Vertex, m_CurrentVat->g0.NormalElements, outVertex);
