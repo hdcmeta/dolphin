@@ -538,11 +538,11 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		dstLocation.PlacedFootprint.Footprint.RowPitch = (dstLocation.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
 
 		D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
-		srcLocation.pResource = FramebufferManager::GetEFBColorTexture()->GetTex12();
+		srcLocation.pResource = FramebufferManager::GetResolvedEFBColorTexture()->GetTex12();
 		srcLocation.SubresourceIndex = 0;
 		srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		FramebufferManager::GetResolvedEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		D3D::current_command_list->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &box12);
 
 		// read the data from system memory
@@ -1553,6 +1553,7 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 		D3D::current_command_list->CopyTextureRegion(&dst, 0, 0, 0, &src, &box);
 
 		// Restore render target to backbuffer
+		D3D::GetBackBuffer()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		D3D::current_command_list->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV12(), FALSE, nullptr);
 	}
 	else
