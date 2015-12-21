@@ -14,7 +14,7 @@
 #include <vector>
 #include <queue>
 
-static const UINT s_initial_command_allocator_count = 8;
+static const UINT s_initial_command_allocator_count = 4;
 
 namespace DX12
 {
