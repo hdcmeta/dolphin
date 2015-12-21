@@ -14,7 +14,7 @@
 #include <vector>
 #include <queue>
 
-static const UINT s_initial_command_allocator_count = 4;
+static const UINT s_initial_command_allocator_count = 2;
 
 namespace DX12
 {
@@ -140,11 +140,6 @@ void D3DCommandListManager::ExecuteQueuedWork(bool wait_for_gpu_completion)
 		m_queued_command_list->QueueFenceGpuSignal(m_queue_fence, m_queue_fence_value);
 	}
 
-	if (m_current_command_allocator == 0)
-	{
-		PerformGpuRolloverChecks();
-	}
-
 	ResetCommandListWithIdleCommandAllocator();
 
 	m_queued_command_list->ProcessQueuedItems();
@@ -267,7 +262,7 @@ void D3DCommandListManager::PerformGpuRolloverChecks()
 	CheckHR(m_command_queue->Signal(m_queue_rollover_fence, m_queue_rollover_fence_value));
 #endif
 
-	if (safe_to_reset_command_allocator_list == 0)
+	if (m_current_command_allocator_list == 0)
 	{
 		D3D::MoveToNextD3DTextureUploadHeap();
 	}
