@@ -4,6 +4,7 @@
 
 #define USE_D3D12_QUEUED_COMMAND_LISTS
 #define USE_D3D12_FREQUENT_EXECUTION
+//#define USE_D3D12_DEBUG_LAYER
 
 #pragma once
 

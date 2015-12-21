@@ -61,8 +61,11 @@ void ReplaceRGBATexture2D(ID3D12Resource* texture12, const u8* buffer, unsigned 
 		
 		for (unsigned int i = 0; i < ARRAYSIZE(s_texture_upload_heaps); i++)
 		{
-			D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(s_texture_upload_heaps[i]);
-			s_texture_upload_heaps[i] = nullptr;
+			if (s_texture_upload_heaps[i])
+			{
+				D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(s_texture_upload_heaps[i]);
+				s_texture_upload_heaps[i] = nullptr;
+			}
 		}
 		
 		D3D::command_list_mgr->ExecuteQueuedWork(true);

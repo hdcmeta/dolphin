@@ -334,28 +334,13 @@ HRESULT Create(HWND wnd)
 	swap_chain_desc.OutputWindow = wnd;
 	swap_chain_desc.SampleDesc.Count = 1;
 	swap_chain_desc.SampleDesc.Quality = 0;
-	swap_chain_desc.Windowed = !g_Config.bFullscreen;
+	swap_chain_desc.Windowed = true;
 	swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
-	DXGI_OUTPUT_DESC out_desc = {};
-	output->GetDesc(&out_desc);
-
-	DXGI_MODE_DESC mode_desc = {};
-	mode_desc.Width = out_desc.DesktopCoordinates.right - out_desc.DesktopCoordinates.left;
-	mode_desc.Height = out_desc.DesktopCoordinates.bottom - out_desc.DesktopCoordinates.top;
-	mode_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	mode_desc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	hr = output->FindClosestMatchingMode(&mode_desc, &swap_chain_desc.BufferDesc, nullptr);
-	if (FAILED(hr))
-		MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
-
-	if (swap_chain_desc.Windowed)
-	{
-		// forcing buffer resolution to xres and yres..
-		// this is not a problem as long as we're in windowed mode
-		swap_chain_desc.BufferDesc.Width = xres;
-		swap_chain_desc.BufferDesc.Height = yres;
-	}
+	swap_chain_desc.BufferDesc.Width = xres;
+	swap_chain_desc.BufferDesc.Height = yres;
+	swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	// Creating debug devices can sometimes fail if the user doesn't have the correct
@@ -363,19 +348,19 @@ HRESULT Create(HWND wnd)
 	{
 		if (SUCCEEDED(hr))
 		{
-			ID3D12Debug* debugController;
-			hr = PD3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+			ID3D12Debug* debug_controller;
+			hr = d3d12_get_debug_interface(IID_PPV_ARGS(&debug_controller));
 			if (SUCCEEDED(hr))
 			{
-				debugController->EnableDebugLayer();
-				debugController->Release();
+				debug_controller->EnableDebugLayer();
+				debug_controller->Release();
 			}
 			else
 			{
 				MessageBox(wnd, _T("Failed to initialize Direct3D debug layer."), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 			}
 
-			hr = PD3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
+			hr = d3d12_create_device(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
 
 			feat_level = D3D_FEATURE_LEVEL_11_0;
 		}
@@ -386,6 +371,19 @@ HRESULT Create(HWND wnd)
 	{
 		if (SUCCEEDED(hr))
 		{
+#ifdef USE_D3D12_DEBUG_LAYER
+			ID3D12Debug* debug_controller;
+			hr = d3d12_get_debug_interface(IID_PPV_ARGS(&debug_controller));
+			if (SUCCEEDED(hr))
+			{
+				debug_controller->EnableDebugLayer();
+				debug_controller->Release();
+			}
+			else
+			{
+				MessageBox(wnd, _T("Failed to initialize Direct3D debug layer."), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
+			}
+#endif
 			hr = d3d12_create_device(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
 
 			feat_level = D3D_FEATURE_LEVEL_11_0;
@@ -563,9 +561,10 @@ void CreateDescriptorHeaps()
 	}
 
 	{
+		// D3D12TODO: Temporary workaround.. really need to properly suballocate out of render target heap.
 		D3D12_DESCRIPTOR_HEAP_DESC rtv_descriptor_heap_desc = {};
 		rtv_descriptor_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		rtv_descriptor_heap_desc.NumDescriptors = 2000;
+		rtv_descriptor_heap_desc.NumDescriptors = 1000000;
 		rtv_descriptor_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 		rtv_descriptor_heap_mgr = new D3DDescriptorHeapManager(&rtv_descriptor_heap_desc, device12);
@@ -617,13 +616,10 @@ void CreateRootSignatures()
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVONE].Descriptor.ShaderRegister = 0;
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVONE].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	if (g_ActiveConfig.bEnablePixelLighting)
-	{
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	}
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	// D3D12TODO: Add bounding box UAV to root signature.
 
@@ -635,9 +631,6 @@ void CreateRootSignatures()
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
 
 	root_signature_desc.NumParameters = ARRAYSIZE(root_parameters);
-
-	if (!g_ActiveConfig.bEnablePixelLighting)
-		root_signature_desc.NumParameters--;
 
 	ID3DBlob* text_root_signature_blob;
 	ID3DBlob* text_root_signature_error_blob;
@@ -842,7 +835,7 @@ void Present()
 	// Only present at most two times per vblank interval. If the application exhausts available back buffers, the
 	// the Present call will block until the next vblank.
 	
-	if (((current_timestamp.QuadPart - last_present.QuadPart) * 1000) / frequency.QuadPart >= (16.667 / 2))
+	if ((UINT)g_ActiveConfig.IsVSync() || (((current_timestamp.QuadPart - last_present.QuadPart) * 1000) / frequency.QuadPart >= (16.667 / 2)))
 	{
 		last_present = current_timestamp;
 
@@ -865,20 +858,13 @@ void Present()
 
 HRESULT SetFullscreenState(bool enable_fullscreen)
 {
-	return swapchain->SetFullscreenState(enable_fullscreen, nullptr);
+	return S_OK;
 }
 
 HRESULT GetFullscreenState(bool* fullscreen_state)
 {
-	if (fullscreen_state == nullptr)
-	{
-		return E_POINTER;
-	}
-
-	BOOL state;
-	HRESULT hr = swapchain->GetFullscreenState(&state, nullptr);
-	*fullscreen_state = !!state;
-	return hr;
+	*fullscreen_state = false;
+	return S_OK;
 }
 
 }  // namespace D3D
