@@ -334,28 +334,13 @@ HRESULT Create(HWND wnd)
 	swap_chain_desc.OutputWindow = wnd;
 	swap_chain_desc.SampleDesc.Count = 1;
 	swap_chain_desc.SampleDesc.Quality = 0;
-	swap_chain_desc.Windowed = !g_Config.bFullscreen;
+	swap_chain_desc.Windowed = true;
 	swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
-	DXGI_OUTPUT_DESC out_desc = {};
-	output->GetDesc(&out_desc);
-
-	DXGI_MODE_DESC mode_desc = {};
-	mode_desc.Width = out_desc.DesktopCoordinates.right - out_desc.DesktopCoordinates.left;
-	mode_desc.Height = out_desc.DesktopCoordinates.bottom - out_desc.DesktopCoordinates.top;
-	mode_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	mode_desc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	hr = output->FindClosestMatchingMode(&mode_desc, &swap_chain_desc.BufferDesc, nullptr);
-	if (FAILED(hr))
-		MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
-
-	if (swap_chain_desc.Windowed)
-	{
-		// forcing buffer resolution to xres and yres..
-		// this is not a problem as long as we're in windowed mode
-		swap_chain_desc.BufferDesc.Width = xres;
-		swap_chain_desc.BufferDesc.Height = yres;
-	}
+	swap_chain_desc.BufferDesc.Width = xres;
+	swap_chain_desc.BufferDesc.Height = yres;
+	swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	// Creating debug devices can sometimes fail if the user doesn't have the correct
@@ -386,6 +371,19 @@ HRESULT Create(HWND wnd)
 	{
 		if (SUCCEEDED(hr))
 		{
+#ifdef USE_D3D12_DEBUG_LAYER
+			ID3D12Debug* debug_controller;
+			hr = d3d12_get_debug_interface(IID_PPV_ARGS(&debug_controller));
+			if (SUCCEEDED(hr))
+			{
+				debug_controller->EnableDebugLayer();
+				debug_controller->Release();
+			}
+			else
+			{
+				MessageBox(wnd, _T("Failed to initialize Direct3D debug layer."), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
+			}
+#endif
 			hr = d3d12_create_device(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
 
 			feat_level = D3D_FEATURE_LEVEL_11_0;
@@ -843,7 +841,7 @@ void Present()
 	// Only present at most two times per vblank interval. If the application exhausts available back buffers, the
 	// the Present call will block until the next vblank.
 	
-	if (((current_timestamp.QuadPart - last_present.QuadPart) * 1000) / frequency.QuadPart >= (16.667 / 2))
+	if ((UINT)g_ActiveConfig.IsVSync() || (((current_timestamp.QuadPart - last_present.QuadPart) * 1000) / frequency.QuadPart >= (16.667 / 2)))
 	{
 		last_present = current_timestamp;
 
