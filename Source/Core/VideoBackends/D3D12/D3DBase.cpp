@@ -363,19 +363,19 @@ HRESULT Create(HWND wnd)
 	{
 		if (SUCCEEDED(hr))
 		{
-			ID3D12Debug* debugController;
-			hr = PD3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+			ID3D12Debug* debug_controller;
+			hr = d3d12_get_debug_interface(IID_PPV_ARGS(&debug_controller));
 			if (SUCCEEDED(hr))
 			{
-				debugController->EnableDebugLayer();
-				debugController->Release();
+				debug_controller->EnableDebugLayer();
+				debug_controller->Release();
 			}
 			else
 			{
 				MessageBox(wnd, _T("Failed to initialize Direct3D debug layer."), _T("Dolphin Direct3D 12 backend"), MB_OK | MB_ICONERROR);
 			}
 
-			hr = PD3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
+			hr = d3d12_create_device(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device12));
 
 			feat_level = D3D_FEATURE_LEVEL_11_0;
 		}
@@ -563,9 +563,10 @@ void CreateDescriptorHeaps()
 	}
 
 	{
+		// D3D12TODO: Temporary workaround.. really need to properly suballocate out of render target heap.
 		D3D12_DESCRIPTOR_HEAP_DESC rtv_descriptor_heap_desc = {};
 		rtv_descriptor_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		rtv_descriptor_heap_desc.NumDescriptors = 2000;
+		rtv_descriptor_heap_desc.NumDescriptors = 1000000;
 		rtv_descriptor_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 		rtv_descriptor_heap_mgr = new D3DDescriptorHeapManager(&rtv_descriptor_heap_desc, device12);
@@ -865,20 +866,13 @@ void Present()
 
 HRESULT SetFullscreenState(bool enable_fullscreen)
 {
-	return swapchain->SetFullscreenState(enable_fullscreen, nullptr);
+	return S_OK;
 }
 
 HRESULT GetFullscreenState(bool* fullscreen_state)
 {
-	if (fullscreen_state == nullptr)
-	{
-		return E_POINTER;
-	}
-
-	BOOL state;
-	HRESULT hr = swapchain->GetFullscreenState(&state, nullptr);
-	*fullscreen_state = !!state;
-	return hr;
+	*fullscreen_state = false;
+	return S_OK;
 }
 
 }  // namespace D3D
