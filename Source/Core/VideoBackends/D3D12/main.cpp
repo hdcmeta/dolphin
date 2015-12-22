@@ -83,7 +83,7 @@ void InitBackendInfo()
 	}
 
 	g_Config.backend_info.APIType = API_D3D;
-	g_Config.backend_info.bSupportsExclusiveFullscreen = true;
+	g_Config.backend_info.bSupportsExclusiveFullscreen = false;
 	g_Config.backend_info.bSupportsDualSourceBlend = true;
 	g_Config.backend_info.bSupportsPrimitiveRestart = true;
 	g_Config.backend_info.bSupportsOversizedViewports = false;
