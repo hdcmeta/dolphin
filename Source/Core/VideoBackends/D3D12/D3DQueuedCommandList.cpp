@@ -243,6 +243,8 @@ DWORD WINAPI ID3D12QueuedCommandList::BackgroundThreadFunction(LPVOID param)
 
 					command_list->OMSetRenderTargets(
 						render_target_count,
+						reinterpret_cast<D3DQueueItem*>(item)->SetRenderTargets.RenderTargetDescriptor.ptr == NULL ?
+						nullptr : 
 						&reinterpret_cast<D3DQueueItem*>(item)->SetRenderTargets.RenderTargetDescriptor,
 						FALSE,
 						reinterpret_cast<D3DQueueItem*>(item)->SetRenderTargets.DepthStencilDescriptor.ptr == NULL ?
@@ -1082,7 +1084,7 @@ void STDMETHODCALLTYPE ID3D12QueuedCommandList::OMSetRenderTargets(
 
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->Type = D3DQueueItemType::SetRenderTargets;
 
-	if(pRenderTargetDescriptors)
+	if (pRenderTargetDescriptors)
 		reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->SetRenderTargets.RenderTargetDescriptor = *pRenderTargetDescriptors;
 	else
 		reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->SetRenderTargets.RenderTargetDescriptor = {};
