@@ -176,10 +176,24 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 		D3D12_BOX srcbox;
 		if (srcrect.left != 0 || srcrect.top != 0)
 		{
+			srcbox.front = 0;
+			srcbox.back = 1;
 			srcbox.left = srcrect.left;
 			srcbox.top = srcrect.top;
 			srcbox.right = srcrect.right;
 			srcbox.bottom = srcrect.bottom;
+			psrcbox = &srcbox;
+		}
+
+		if ((u32)srcrect.GetHeight() > config.height ||
+			(u32)srcrect.GetWidth() > config.width)
+		{
+			srcbox.front = 0;
+			srcbox.back = 1;
+			srcbox.left = srcrect.left;
+			srcbox.top = srcrect.top;
+			srcbox.right = srcbox.left + config.width;
+			srcbox.bottom = srcbox.top + config.height;
 			psrcbox = &srcbox;
 		}
 		
@@ -190,6 +204,9 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 		srcentry->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 		D3D::current_command_list->CopyTextureRegion(&dst, dstrect.left, dstrect.top, 0, &src, psrcbox);
+
+		texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		srcentry->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		return;
 	}
@@ -223,6 +240,8 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 		VertexShaderCache::GetSimpleVertexShader12(),
 		VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), 1.0, 0,
 		DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled());
+
+	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	FramebufferManager::GetEFBDepthTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -356,6 +375,8 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 		GeometryShaderCache::GetCopyGeometryShader12(),
 		1.0f, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled()
 		);
+
+	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	FramebufferManager::GetEFBDepthTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_DEPTH_WRITE);
