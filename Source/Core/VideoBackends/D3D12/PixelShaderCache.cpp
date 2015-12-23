@@ -88,26 +88,6 @@ void PixelShaderCache::Init()
 
 	// Obtain GPU VA for buffer, used at binding time.
 	pscbuf12GPUVA = pscbuf12->GetGPUVirtualAddress();
-
-	Clear();
-
-	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
-		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
-
-	SETSTAT(stats.numPixelShadersCreated, 0);
-	SETSTAT(stats.numPixelShadersAlive, 0);
-
-	// Intentionally share the same cache as DX11, as the shaders are identical. Reduces recompilation when switching APIs.
-	std::string cache_filename = StringFromFormat("%sdx11-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX).c_str(),
-			SConfig::GetInstance().m_strUniqueID.c_str());
-	PixelShaderCacheInserter inserter;
-	g_ps_disk_cache.OpenAndRead(cache_filename, inserter);
-
-	if (g_Config.bEnableShaderDebugging)
-		Clear();
-
-	last_entry = nullptr;
-	last_uid = {};
 }
 
 // ONLY to be used during shutdown.

@@ -21,6 +21,7 @@
 #include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/PerfQuery.h"
 #include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
 #include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/TextureCache.h"
 #include "VideoBackends/D3D12/VertexManager.h"
@@ -189,6 +190,7 @@ void VideoBackend::Video_Prepare()
 	VertexShaderCache::Init();
 	PixelShaderCache::Init();
 	GeometryShaderCache::Init();
+	ShaderCache::Init();
 	StateCache::Init(); // PSO cache is populated here, after constituent shaders are loaded.
 	D3D::InitUtils();
 
@@ -230,6 +232,7 @@ void VideoBackend::Shutdown()
 
 		// internal interfaces
 		D3D::ShutdownUtils();
+		ShaderCache::Shutdown();
 		StaticShaderCache::Shutdown();
 		PixelShaderCache::Shutdown();
 		VertexShaderCache::Shutdown();
