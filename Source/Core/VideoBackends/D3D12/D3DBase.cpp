@@ -468,8 +468,8 @@ HRESULT Create(HWND wnd)
 		default_root_signature
 		);
 
-	command_list_mgr->Getcommand_list(&current_command_list);
-	command_list_mgr->SetInitialcommand_listState();
+	command_list_mgr->GetCommandList(&current_command_list);
+	command_list_mgr->SetInitialCommandListState();
 
 	for (UINT i = 0; i < s_swap_chain_buffer_count; i++)
 	{
