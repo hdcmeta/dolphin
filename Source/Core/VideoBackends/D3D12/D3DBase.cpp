@@ -616,13 +616,10 @@ void CreateRootSignatures()
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVONE].Descriptor.ShaderRegister = 0;
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVONE].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	if (g_ActiveConfig.bEnablePixelLighting)
-	{
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
-		root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	}
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
+	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	// D3D12TODO: Add bounding box UAV to root signature.
 
@@ -634,9 +631,6 @@ void CreateRootSignatures()
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
 
 	root_signature_desc.NumParameters = ARRAYSIZE(root_parameters);
-
-	if (!g_ActiveConfig.bEnablePixelLighting)
-		root_signature_desc.NumParameters--;
 
 	ID3DBlob* text_root_signature_blob;
 	ID3DBlob* text_root_signature_error_blob;
