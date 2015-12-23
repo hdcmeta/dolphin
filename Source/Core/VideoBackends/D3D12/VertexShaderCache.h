@@ -44,11 +44,6 @@ public:
 
 	static void GetConstantBuffer12();
 
-	static D3D12_SHADER_BYTECODE GetSimpleVertexShader12();
-	static D3D12_SHADER_BYTECODE GetClearVertexShader12();
-	static D3D12_INPUT_LAYOUT_DESC GetSimpleInputLayout12();
-	static D3D12_INPUT_LAYOUT_DESC GetClearInputLayout12();
-
 	static bool VertexShaderCache::InsertByteCode(const VertexShaderUid &uid, D3DBlob* bcodeblob);
 
 private:

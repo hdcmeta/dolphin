@@ -33,34 +33,7 @@ const GeometryShaderCache::GSCacheEntry GeometryShaderCache::pass_entry;
 
 D3D12_PRIMITIVE_TOPOLOGY_TYPE currentPrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-D3DBlob* ClearGeometryShaderBlob = nullptr;
-D3DBlob* CopyGeometryShaderBlob = nullptr;
-
 LinearDiskCache<GeometryShaderUid, u8> g_gs_disk_cache;
-
-D3D12_SHADER_BYTECODE GeometryShaderCache::GetClearGeometryShader12()
-{
-	D3D12_SHADER_BYTECODE bytecode = {};
-	if (g_ActiveConfig.iStereoMode > 0)
-	{
-		bytecode.BytecodeLength = ClearGeometryShaderBlob->Size();
-		bytecode.pShaderBytecode = ClearGeometryShaderBlob->Data();
-	}
-
-	return bytecode;
-}
-
-D3D12_SHADER_BYTECODE GeometryShaderCache::GetCopyGeometryShader12()
-{
-	D3D12_SHADER_BYTECODE bytecode = {};
-	if (g_ActiveConfig.iStereoMode > 0)
-	{
-		bytecode.BytecodeLength = CopyGeometryShaderBlob->Size();
-		bytecode.pShaderBytecode = CopyGeometryShaderBlob->Data();
-	}
-
-	return bytecode;
-}
 
 ID3D12Resource* gscbuf12 = nullptr;
 void* gscbuf12data = nullptr;
@@ -110,70 +83,6 @@ public:
 	}
 };
 
-const char clear_shader_code[] = {
-	"struct VSOUTPUT\n"
-	"{\n"
-	"	float4 vPosition   : POSITION;\n"
-	"	float4 vColor0   : COLOR0;\n"
-	"};\n"
-	"struct GSOUTPUT\n"
-	"{\n"
-	"	float4 vPosition   : POSITION;\n"
-	"	float4 vColor0   : COLOR0;\n"
-	"	uint slice    : SV_RenderTargetArrayIndex;\n"
-	"};\n"
-	"[maxvertexcount(6)]\n"
-	"void main(triangle VSOUTPUT o[3], inout TriangleStream<GSOUTPUT> Output)\n"
-	"{\n"
-	"for(int slice = 0; slice < 2; slice++)\n"
-	"{\n"
-	"	for(int i = 0; i < 3; i++)\n"
-	"	{\n"
-	"		GSOUTPUT OUT;\n"
-	"		OUT.vPosition = o[i].vPosition;\n"
-	"		OUT.vColor0 = o[i].vColor0;\n"
-	"		OUT.slice = slice;\n"
-	"		Output.Append(OUT);\n"
-	"	}\n"
-	"	Output.RestartStrip();\n"
-	"}\n"
-	"}\n"
-};
-
-const char copy_shader_code[] = {
-	"struct VSOUTPUT\n"
-	"{\n"
-	"	float4 vPosition : POSITION;\n"
-	"	float3 vTexCoord : TEXCOORD0;\n"
-	"	float  vTexCoord1 : TEXCOORD1;\n"
-	"};\n"
-	"struct GSOUTPUT\n"
-	"{\n"
-	"	float4 vPosition : POSITION;\n"
-	"	float3 vTexCoord : TEXCOORD0;\n"
-	"	float  vTexCoord1 : TEXCOORD1;\n"
-	"	uint slice    : SV_RenderTargetArrayIndex;\n"
-	"};\n"
-	"[maxvertexcount(6)]\n"
-	"void main(triangle VSOUTPUT o[3], inout TriangleStream<GSOUTPUT> Output)\n"
-	"{\n"
-	"for(int slice = 0; slice < 2; slice++)\n"
-	"{\n"
-	"	for(int i = 0; i < 3; i++)\n"
-	"	{\n"
-	"		GSOUTPUT OUT;\n"
-	"		OUT.vPosition = o[i].vPosition;\n"
-	"		OUT.vTexCoord = o[i].vTexCoord;\n"
-	"		OUT.vTexCoord.z = slice;\n"
-	"		OUT.vTexCoord1 = o[i].vTexCoord1;\n"
-	"		OUT.slice = slice;\n"
-	"		Output.Append(OUT);\n"
-	"	}\n"
-	"	Output.RestartStrip();\n"
-	"}\n"
-	"}\n"
-};
-
 void GeometryShaderCache::Init()
 {
 	unsigned int gscbuf12sizeInBytes = gscbuf12paddedSize * gscbuf12Slots;
@@ -193,12 +102,6 @@ void GeometryShaderCache::Init()
 
 	// Obtain persistent CPU pointer to GS Constant Buffer
 	CheckHR(gscbuf12->Map(0, nullptr, &gscbuf12data));
-
-	// used when drawing clear quads
-	D3D::CompileGeometryShader(clear_shader_code, &ClearGeometryShaderBlob);
-
-	// used for buffer copy
-	D3D::CompileGeometryShader(copy_shader_code, &CopyGeometryShaderBlob);
 
 	Clear();
 
@@ -232,8 +135,6 @@ void GeometryShaderCache::Clear()
 void GeometryShaderCache::Shutdown()
 {
 	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(gscbuf12);
-	ClearGeometryShaderBlob->Release();
-	CopyGeometryShaderBlob->Release();
 
 	Clear();
 	g_gs_disk_cache.Sync();

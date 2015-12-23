@@ -21,9 +21,6 @@ public:
 	static bool SetShader(u32 primitive_type); // TODO: Should be renamed to LoadShader
 	static bool InsertByteCode(const GeometryShaderUid &uid, const void* bytecode, unsigned int bytecodelen);
 
-	static D3D12_SHADER_BYTECODE GeometryShaderCache::GetClearGeometryShader12();
-	static D3D12_SHADER_BYTECODE GeometryShaderCache::GetCopyGeometryShader12();
-
 	static D3D12_SHADER_BYTECODE GetActiveShader12() { return last_entry->shader12; }
 	static GeometryShaderUid GetActiveShaderUid12() { return last_uid; }
 	static D3D12_SHADER_BYTECODE GetShaderFromUid(GeometryShaderUid uid)

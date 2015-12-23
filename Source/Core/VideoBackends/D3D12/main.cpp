@@ -21,9 +21,11 @@
 #include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/PerfQuery.h"
 #include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/TextureCache.h"
 #include "VideoBackends/D3D12/VertexManager.h"
 #include "VideoBackends/D3D12/VertexShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/VideoBackend.h"
 
 #include "VideoBackends/D3D12/main.h"
@@ -183,6 +185,7 @@ void VideoBackend::Video_Prepare()
 	g_texture_cache = new TextureCache;
 	g_vertex_manager = new VertexManager;
 	g_perf_query = new PerfQuery;
+	StaticShaderCache::Init();
 	VertexShaderCache::Init();
 	PixelShaderCache::Init();
 	GeometryShaderCache::Init();
@@ -227,6 +230,7 @@ void VideoBackend::Shutdown()
 
 		// internal interfaces
 		D3D::ShutdownUtils();
+		StaticShaderCache::Shutdown();
 		PixelShaderCache::Shutdown();
 		VertexShaderCache::Shutdown();
 		GeometryShaderCache::Shutdown();

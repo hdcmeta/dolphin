@@ -7,10 +7,7 @@
 #include "VideoBackends/D3D12/D3DCommandListManager.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 #include "VideoBackends/D3D12/FramebufferManager.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/Render.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 #include "VideoBackends/D3D12/XFBEncoder.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -220,10 +217,10 @@ void FramebufferManager::ResolveDepthTexture()
 		Renderer::GetTargetRectangle().AsRECT(),
 		Renderer::GetTargetWidth(),
 		Renderer::GetTargetHeight(),
-		PixelShaderCache::GetDepthCopyProgram12(true),
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(),
-		GeometryShaderCache::GetCopyGeometryShader12(),
+		StaticShaderCache::GetDepthCopyPixelShader(true),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
+		StaticShaderCache::GetCopyGeometryShader(),
 		1.0,
 		0,
 		DXGI_FORMAT_D24_UNORM_S8_UINT
@@ -259,10 +256,10 @@ void XFBSource::CopyEFB(float gamma)
 		sourceRc.AsRECT(),
 		Renderer::GetTargetWidth(),
 		Renderer::GetTargetHeight(),
-		PixelShaderCache::GetColorCopyProgram12(true),
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(),
-		GeometryShaderCache::GetCopyGeometryShader12(),
+		StaticShaderCache::GetColorCopyPixelShader(true),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
+		StaticShaderCache::GetCopyGeometryShader(),
 		gamma,
 		0,
 		DXGI_FORMAT_R8G8B8A8_UNORM,

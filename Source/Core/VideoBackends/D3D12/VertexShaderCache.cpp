@@ -27,31 +27,7 @@ const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
 VertexShaderUid VertexShaderCache::last_uid = {};
 UidChecker<VertexShaderUid,ShaderCode> VertexShaderCache::vertex_uid_checker;
 
-static D3DBlob* SimpleVertexShaderBlob = {};
-static D3DBlob* ClearVertexShaderBlob = {};
-static D3D12_INPUT_LAYOUT_DESC SimpleLayout12 = {};
-static D3D12_INPUT_LAYOUT_DESC ClearLayout12 = {};
-
 LinearDiskCache<VertexShaderUid, u8> g_vs_disk_cache;
-
-D3D12_SHADER_BYTECODE VertexShaderCache::GetSimpleVertexShader12()
-{
-	D3D12_SHADER_BYTECODE shader = {};
-	shader.BytecodeLength = SimpleVertexShaderBlob->Size();
-	shader.pShaderBytecode = SimpleVertexShaderBlob->Data();
-
-	return shader;
-}
-D3D12_SHADER_BYTECODE VertexShaderCache::GetClearVertexShader12() 
-{
-	D3D12_SHADER_BYTECODE shader = {};
-	shader.BytecodeLength = ClearVertexShaderBlob->Size();
-	shader.pShaderBytecode = ClearVertexShaderBlob->Data();
-
-	return shader;
-}
-D3D12_INPUT_LAYOUT_DESC VertexShaderCache::GetSimpleInputLayout12() { return SimpleLayout12; }
-D3D12_INPUT_LAYOUT_DESC VertexShaderCache::GetClearInputLayout12() { return ClearLayout12; }
 
 ID3D12Resource* vscbuf12 = nullptr;
 D3D12_GPU_VIRTUAL_ADDRESS vscbuf12GPUVA = {};
@@ -116,61 +92,8 @@ public:
 	}
 };
 
-const char simple_shader_code[] = {
-	"struct VSOUTPUT\n"
-	"{\n"
-	"float4 vPosition : POSITION;\n"
-	"float3 vTexCoord : TEXCOORD0;\n"
-	"float  vTexCoord1 : TEXCOORD1;\n"
-	"};\n"
-	"VSOUTPUT main(float4 inPosition : POSITION,float4 inTEX0 : TEXCOORD0)\n"
-	"{\n"
-	"VSOUTPUT OUT;\n"
-	"OUT.vPosition = inPosition;\n"
-	"OUT.vTexCoord = inTEX0.xyz;\n"
-	"OUT.vTexCoord1 = inTEX0.w;\n"
-	"return OUT;\n"
-	"}\n"
-};
-
-const char clear_shader_code[] = {
-	"struct VSOUTPUT\n"
-	"{\n"
-	"float4 vPosition   : POSITION;\n"
-	"float4 vColor0   : COLOR0;\n"
-	"};\n"
-	"VSOUTPUT main(float4 inPosition : POSITION,float4 inColor0: COLOR0)\n"
-	"{\n"
-	"VSOUTPUT OUT;\n"
-	"OUT.vPosition = inPosition;\n"
-	"OUT.vColor0 = inColor0;\n"
-	"return OUT;\n"
-	"}\n"
-};
-
 void VertexShaderCache::Init()
 {
-	const D3D12_INPUT_ELEMENT_DESC simpleelems[2] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-
-	};
-
-	SimpleLayout12.NumElements = ARRAYSIZE(simpleelems);
-	SimpleLayout12.pInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[ARRAYSIZE(simpleelems)];
-	memcpy((void*)SimpleLayout12.pInputElementDescs, simpleelems, sizeof(simpleelems));
-
-	const D3D12_INPUT_ELEMENT_DESC clearelems[2] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-	};
-
-	ClearLayout12.NumElements = ARRAYSIZE(clearelems);
-	ClearLayout12.pInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[ARRAYSIZE(clearelems)];
-	memcpy((void*)ClearLayout12.pInputElementDescs, clearelems, sizeof(clearelems));
-
 	unsigned int vscbuf12sizeInBytes = vscbuf12paddedSize * vscbuf12Slots;
 
 	CheckHR(
@@ -191,9 +114,6 @@ void VertexShaderCache::Init()
 
 	// Obtain GPU VA for buffer, used at binding time.
 	vscbuf12GPUVA = vscbuf12->GetGPUVirtualAddress();
-
-	D3D::CompileVertexShader(simple_shader_code, &SimpleVertexShaderBlob);
-	D3D::CompileVertexShader(clear_shader_code, &ClearVertexShaderBlob);
 
 	Clear();
 
@@ -229,11 +149,6 @@ void VertexShaderCache::Clear()
 void VertexShaderCache::Shutdown()
 {
 	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(vscbuf12);
-
-	SAFE_RELEASE(SimpleVertexShaderBlob);
-	SAFE_RELEASE(ClearVertexShaderBlob);
-	SAFE_DELETE(SimpleLayout12.pInputElementDescs);
-	SAFE_DELETE(ClearLayout12.pInputElementDescs);
 
 	Clear();
 	g_vs_disk_cache.Sync();

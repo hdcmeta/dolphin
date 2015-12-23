@@ -46,17 +46,6 @@ public:
 
 	static void GetConstantBuffer12(); // Does not return a buffer, but actually binds the constant data.
 
-	static D3D12_SHADER_BYTECODE GetColorMatrixProgram12(bool multisampled);
-	static D3D12_SHADER_BYTECODE GetColorCopyProgram12(bool multisampled);
-	static D3D12_SHADER_BYTECODE GetDepthMatrixProgram12(bool multisampled);
-	static D3D12_SHADER_BYTECODE GetDepthCopyProgram12(bool multisampled);
-	static D3D12_SHADER_BYTECODE GetClearProgram12();
-	static D3D12_SHADER_BYTECODE GetAnaglyphProgram12();
-	static D3D12_SHADER_BYTECODE ReinterpRGBA6ToRGB812(bool multisampled);
-	static D3D12_SHADER_BYTECODE ReinterpRGB8ToRGBA612(bool multisampled);
-
-	static void InvalidateMSAAShaders();
-
 private:
 	struct PSCacheEntry
 	{

@@ -16,7 +16,11 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 
+#include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/NativeVertexFormat.h"
+#include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
+#include "VideoBackends/D3D12/VertexShaderCache.h"
 
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/VertexLoaderManager.h"

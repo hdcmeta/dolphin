@@ -12,7 +12,6 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 #include "VideoBackends/D3D12/VertexManager.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 
 namespace DX12
 {

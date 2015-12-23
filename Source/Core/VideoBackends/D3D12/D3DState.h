@@ -13,11 +13,15 @@
 #include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/NativeVertexFormat.h"
 #include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/VertexShaderCache.h"
+
 #include "VideoCommon/BPMemory.h"
 
 namespace DX12
 {
+
+class PipelineStateCacheInserter;
 
 union RasterizerState
 {
@@ -73,8 +77,6 @@ struct SmallPsoDiskDesc
 	D3D12_PRIMITIVE_TOPOLOGY_TYPE topology;
 	PortableVertexDeclaration vertexDeclaration; // Used to construct the input layout.
 };
-
-class PipelineStateCacheInserter;
 
 class StateCache
 {
