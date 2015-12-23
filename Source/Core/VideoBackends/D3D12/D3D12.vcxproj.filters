@@ -79,6 +79,9 @@
     <ClCompile Include="StaticShaderCache.cpp">
       <Filter>Render</Filter>
     </ClCompile>
+    <ClCompile Include="ShaderCache.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="D3DBase.h">
@@ -153,6 +156,9 @@
       <Filter>D3D12</Filter>
     </ClInclude>
     <ClInclude Include="StaticShaderCache.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCache.h">
       <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>

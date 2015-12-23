@@ -1,3 +1,7 @@
+// Copyright 2015 Dolphin Emulator Project
+// Licensed under GPLv2+
+// Refer to the license.txt file included.
+
 #pragma once
 
 namespace DX12
@@ -29,7 +33,6 @@ public:
 	// Geometry shaders
 	static D3D12_SHADER_BYTECODE GetClearGeometryShader();
 	static D3D12_SHADER_BYTECODE GetCopyGeometryShader();
-
 };
 
 }

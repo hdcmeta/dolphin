@@ -54,6 +54,7 @@
     <ClCompile Include="PixelShaderCache.cpp" />
     <ClCompile Include="PSTextureEncoder.cpp" />
     <ClCompile Include="Render.cpp" />
+    <ClCompile Include="ShaderCache.cpp" />
     <ClCompile Include="StaticShaderCache.cpp" />
     <ClCompile Include="Television.cpp" />
     <ClCompile Include="TextureCache.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="PixelShaderCache.h" />
     <ClInclude Include="PSTextureEncoder.h" />
     <ClInclude Include="Render.h" />
+    <ClInclude Include="ShaderCache.h" />
     <ClInclude Include="StaticShaderCache.h" />
     <ClInclude Include="Television.h" />
     <ClInclude Include="TextureCache.h" />
