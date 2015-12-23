@@ -10,7 +10,6 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 #include "VideoBackends/D3D12/Television.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 #include "VideoCommon/VideoConfig.h"
 
 // D3D12TODO: Add DX12 path for this file.

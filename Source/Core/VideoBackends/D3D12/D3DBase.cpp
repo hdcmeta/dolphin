@@ -10,7 +10,6 @@
 #include "VideoBackends/D3D12/D3DDescriptorHeapManager.h"
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DTexture.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 #include "VideoCommon/VideoConfig.h"
 
 static const unsigned int s_swap_chain_buffer_count = 4;

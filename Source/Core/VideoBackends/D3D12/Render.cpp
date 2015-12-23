@@ -22,13 +22,13 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 #include "VideoBackends/D3D12/FramebufferManager.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/NativeVertexFormat.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/Render.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
+#include "VideoBackends/D3D12/ShaderConstantsManager.h"
 #include "VideoBackends/D3D12/Television.h"
 #include "VideoBackends/D3D12/TextureCache.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 
 #include "VideoCommon/AVIDump.h"
 #include "VideoCommon/BPFunctions.h"
@@ -449,9 +449,9 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			&RectToLock,
 			Renderer::GetTargetWidth(),
 			Renderer::GetTargetHeight(),
-			PixelShaderCache::GetColorCopyProgram12(true),
-			VertexShaderCache::GetSimpleVertexShader12(),
-			VertexShaderCache::GetSimpleInputLayout12(),
+			StaticShaderCache::GetColorCopyPixelShader(true),
+			StaticShaderCache::GetSimpleVertexShader(),
+			StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 			D3D12_SHADER_BYTECODE(),
 			1.0f,
 			0,
@@ -706,11 +706,11 @@ void Renderer::ReinterpretPixelData(unsigned int convtype)
 
 	if (convtype == 0)
 	{
-		pixel_shader12 = PixelShaderCache::ReinterpRGB8ToRGBA612(true);
+		pixel_shader12 = StaticShaderCache::GetReinterpRGB8ToRGBA6PixelShader(true);
 	}
 	else if (convtype == 2)
 	{
-		pixel_shader12 = PixelShaderCache::ReinterpRGBA6ToRGB812(true);
+		pixel_shader12 = StaticShaderCache::GetReinterpRGBA6ToRGB8PixelShader(true);
 	} 
 	else
 	{
@@ -731,9 +731,9 @@ void Renderer::ReinterpretPixelData(unsigned int convtype)
 		g_renderer->GetTargetWidth(),
 		g_renderer->GetTargetHeight(),
 		pixel_shader12,
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(),
-		GeometryShaderCache::GetCopyGeometryShader12(),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
+		StaticShaderCache::GetCopyGeometryShader(),
 		1.0f,
 		0,
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -1105,7 +1105,8 @@ void Renderer::SwapImpl(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight, co
 	{
 		s_last_xfb_mode = g_ActiveConfig.bUseRealXFB;
 		s_last_multisamples = g_ActiveConfig.iMultisamples;
-		PixelShaderCache::InvalidateMSAAShaders();
+
+		StaticShaderCache::InvalidateMSAAShaders();
 
 		if (windowResized)
 		{
@@ -1191,15 +1192,14 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		D3D::command_list_mgr->m_dirty_samplers = false;
 	}
 
-	VertexShaderCache::GetConstantBuffer12();
-	PixelShaderCache::GetConstantBuffer12();
-	GeometryShaderCache::GetConstantBuffer12();
+	// Uploads and binds required constant buffer data for all stages.
+	ShaderConstantsManager::LoadAndSetShaderConstants();
 
 	if (D3D::command_list_mgr->m_dirty_pso || pOldVertextFormat != reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat()))
 	{
 		pOldVertextFormat = reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat());
 
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = GeometryShaderCache::GetCurrentPrimitiveTopology();
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = ShaderCache::GetCurrentPrimitiveTopology();
 		RasterizerState modifiableRastState = gx_state.raster;
 
 		if (topologyType != D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE)
@@ -1208,9 +1208,9 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		}
 
 		SmallPsoDesc pso_desc = {
-			VertexShaderCache::GetActiveShader12(),     // D3D12_SHADER_BYTECODE VS;
-			PixelShaderCache::GetActiveShader12(),      // D3D12_SHADER_BYTECODE PS;
-			GeometryShaderCache::GetActiveShader12(),   // D3D12_SHADER_BYTECODE GS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_VERTEX_SHADER),   // D3D12_SHADER_BYTECODE VS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_PIXEL_SHADER),    // D3D12_SHADER_BYTECODE PS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_GEOMETRY_SHADER), // D3D12_SHADER_BYTECODE GS;
 			pOldVertextFormat,							// D3D12_INPUT_LAYOUT_DESC InputLayout;
 			gx_state.blend,                             // BlendState BlendState;
 			modifiableRastState,                        // RasterizerState RasterizerState;
@@ -1225,8 +1225,16 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		}
 
 		ID3D12PipelineState* pso = nullptr;
-		CheckHR(gx_state_cache.GetPipelineStateObjectFromCache(&pso_desc, &pso, topologyType, PixelShaderCache::GetActiveShaderUid12(), VertexShaderCache::GetActiveShaderUid12(), GeometryShaderCache::GetActiveShaderUid12()));
-
+		CheckHR(
+			gx_state_cache.GetPipelineStateObjectFromCache(
+				&pso_desc,
+				&pso,
+				topologyType,
+				reinterpret_cast<const PixelShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_PIXEL_SHADER)),
+				reinterpret_cast<const VertexShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_VERTEX_SHADER)),
+				reinterpret_cast<const GeometryShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_GEOMETRY_SHADER))
+				)
+			);
 		D3D::current_command_list->SetPipelineState(pso);
 
 		D3D::command_list_mgr->m_dirty_pso = false;
@@ -1473,10 +1481,10 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 		// Swap chain backbuffer is never multisampled..
 
 		D3D::current_command_list->RSSetViewports(1, &leftVp12);
-		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
+		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, StaticShaderCache::GetColorCopyPixelShader(false), StaticShaderCache::GetSimpleVertexShader(), StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
 
 		D3D::current_command_list->RSSetViewports(1, &rightVp12);
-		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
+		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, StaticShaderCache::GetColorCopyPixelShader(false), StaticShaderCache::GetSimpleVertexShader(), StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, false);
 	}
 	else if (g_ActiveConfig.iStereoMode == STEREO_3DVISION)
 	{
@@ -1491,10 +1499,10 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 		D3D::current_command_list->OMSetRenderTargets(1, &s_3d_vision_texture->GetRTV12(), FALSE, nullptr);
 
 		D3D::current_command_list->RSSetViewports(1, &leftVp12);
-		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
+		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, StaticShaderCache::GetColorCopyPixelShader(false), StaticShaderCache::GetSimpleVertexShader(), StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), gamma, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
 
 		D3D::current_command_list->RSSetViewports(1, &rightVp12);
-		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, PixelShaderCache::GetColorCopyProgram12(false), VertexShaderCache::GetSimpleVertexShader12(), VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
+		D3D::DrawShadedTexQuad(src_texture, src.AsRECT(), src_width, src_height, StaticShaderCache::GetColorCopyPixelShader(false), StaticShaderCache::GetSimpleVertexShader(), StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), gamma, 1, DXGI_FORMAT_R8G8B8A8_UNORM, false, s_3d_vision_texture->GetMultisampled());
 
 		// Copy the left eye to the backbuffer, if Nvidia 3D Vision is enabled it should
 		// recognize the signature and automatically include the right eye frame.
@@ -1522,9 +1530,9 @@ void Renderer::BlitScreen(TargetRectangle src, TargetRectangle dst, D3DTexture2D
 			src.AsRECT(),
 			src_width,
 			src_height,
-			(g_Config.iStereoMode == STEREO_ANAGLYPH) ? PixelShaderCache::GetAnaglyphProgram12() : PixelShaderCache::GetColorCopyProgram12(false),
-			VertexShaderCache::GetSimpleVertexShader12(),
-			VertexShaderCache::GetSimpleInputLayout12(),
+			(g_Config.iStereoMode == STEREO_ANAGLYPH) ? StaticShaderCache::GetAnaglyphPixelShader() : StaticShaderCache::GetColorCopyPixelShader(false),
+			StaticShaderCache::GetSimpleVertexShader(),
+			StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 			D3D12_SHADER_BYTECODE(),
 			gamma,
 			0,

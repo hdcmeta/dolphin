@@ -18,12 +18,12 @@
 #include "VideoBackends/D3D12/D3DCommandListManager.h"
 #include "VideoBackends/D3D12/D3DBase.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/PerfQuery.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
+#include "VideoBackends/D3D12/ShaderConstantsManager.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/TextureCache.h"
 #include "VideoBackends/D3D12/VertexManager.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 #include "VideoBackends/D3D12/VideoBackend.h"
 
 #include "VideoBackends/D3D12/main.h"
@@ -183,9 +183,9 @@ void VideoBackend::Video_Prepare()
 	g_texture_cache = new TextureCache;
 	g_vertex_manager = new VertexManager;
 	g_perf_query = new PerfQuery;
-	VertexShaderCache::Init();
-	PixelShaderCache::Init();
-	GeometryShaderCache::Init();
+	ShaderCache::Init();
+	ShaderConstantsManager::Init();
+	StaticShaderCache::Init();
 	StateCache::Init(); // PSO cache is populated here, after constituent shaders are loaded.
 	D3D::InitUtils();
 
@@ -227,9 +227,9 @@ void VideoBackend::Shutdown()
 
 		// internal interfaces
 		D3D::ShutdownUtils();
-		PixelShaderCache::Shutdown();
-		VertexShaderCache::Shutdown();
-		GeometryShaderCache::Shutdown();
+		ShaderCache::Shutdown();
+		ShaderConstantsManager::Shutdown();
+		StaticShaderCache::Shutdown();
 		BBox::Shutdown();
 
 		delete g_perf_query;

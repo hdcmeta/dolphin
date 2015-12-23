@@ -9,12 +9,10 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
 #include "VideoBackends/D3D12/FramebufferManager.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/PSTextureEncoder.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/TextureCache.h"
 #include "VideoBackends/D3D12/TextureEncoder.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 #include "VideoCommon/ImageWrite.h"
 #include "VideoCommon/LookUpTables.h"
 #include "VideoCommon/RenderBase.h"
@@ -236,9 +234,9 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 	srcRC.bottom = srcrect.bottom;
 	D3D::DrawShadedTexQuad(srcentry->texture, &srcRC,
 		srcentry->config.width, srcentry->config.height,
-		PixelShaderCache::GetColorCopyProgram12(false),
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(), D3D12_SHADER_BYTECODE(), 1.0, 0,
+		StaticShaderCache::GetColorCopyPixelShader(false),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), 1.0, 0,
 		DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled());
 
 	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -369,10 +367,10 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 		&sourcerect,
 		Renderer::GetTargetWidth(),
 		Renderer::GetTargetHeight(),
-		(srcFormat == PEControl::Z24) ? PixelShaderCache::GetDepthMatrixProgram12(true) : PixelShaderCache::GetColorMatrixProgram12(true),
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(),
-		GeometryShaderCache::GetCopyGeometryShader12(),
+		(srcFormat == PEControl::Z24) ? StaticShaderCache::GetDepthMatrixPixelShader(true) : StaticShaderCache::GetColorMatrixPixelShader(true),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
+		StaticShaderCache::GetCopyGeometryShader(),
 		1.0f, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled()
 		);
 
@@ -548,9 +546,9 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 		&sourcerect, unconverted->config.width,
 		unconverted->config.height,
 		palette_pixel_shader12[format],
-		VertexShaderCache::GetSimpleVertexShader12(),
-		VertexShaderCache::GetSimpleInputLayout12(),
-		GeometryShaderCache::GetCopyGeometryShader12(),
+		StaticShaderCache::GetSimpleVertexShader(),
+		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
+		StaticShaderCache::GetCopyGeometryShader(),
 		1.0f,
 		0,
 		DXGI_FORMAT_R8G8B8A8_UNORM,

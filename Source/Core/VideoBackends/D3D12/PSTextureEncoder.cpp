@@ -12,8 +12,8 @@
 #include "VideoBackends/D3D12/FramebufferManager.h"
 #include "VideoBackends/D3D12/PSTextureEncoder.h"
 #include "VideoBackends/D3D12/Render.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/TextureCache.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 
 #include "VideoCommon/TextureConversionShader.h"
 
@@ -174,8 +174,8 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 			Renderer::GetTargetWidth(),
 			Renderer::GetTargetHeight(),
 			SetStaticShader12(format, srcFormat, isIntensity, scaleByHalf),
-			VertexShaderCache::GetSimpleVertexShader12(),
-			VertexShaderCache::GetSimpleInputLayout12(),
+			StaticShaderCache::GetSimpleVertexShader(),
+			StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 			D3D12_SHADER_BYTECODE(),
 			1.0f,
 			0,

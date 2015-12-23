@@ -1,37 +1,17 @@
-// Copyright 2010 Dolphin Emulator Project
+// Copyright 2015 Dolphin Emulator Project
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
-#include <string>
-
-#include "Common/FileUtil.h"
-#include "Common/LinearDiskCache.h"
-#include "Common/StringUtil.h"
-
-#include "Core/ConfigManager.h"
-
 #include "VideoBackends/D3D12/D3DBase.h"
-#include "VideoBackends/D3D12/D3DCommandListManager.h"
-#include "VideoBackends/D3D12/D3DDescriptorHeapManager.h"
 #include "VideoBackends/D3D12/D3DShader.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 
-#include "VideoCommon/Debugger.h"
-#include "VideoCommon/PixelShaderGen.h"
-#include "VideoCommon/PixelShaderManager.h"
-#include "VideoCommon/Statistics.h"
 #include "VideoCommon/VideoConfig.h"
 
 namespace DX12
 {
 
-PixelShaderCache::PSCache PixelShaderCache::PixelShaders;
-const PixelShaderCache::PSCacheEntry* PixelShaderCache::last_entry;
-PixelShaderUid PixelShaderCache::last_uid = {};
-UidChecker<PixelShaderUid,ShaderCode> PixelShaderCache::pixel_uid_checker;
-
-LinearDiskCache<PixelShaderUid, u8> g_ps_disk_cache;
-
+// Pixel Shader blobs
 D3DBlob* s_ColorMatrixProgramBlob[2] = {};
 D3DBlob* s_ColorCopyProgramBlob[2] = {};
 D3DBlob* s_DepthMatrixProgramBlob[2] = {};
@@ -41,14 +21,37 @@ D3DBlob* s_AnaglyphProgramBlob = {};
 D3DBlob* s_rgba6_to_rgb8Blob[2] = {};
 D3DBlob* s_rgb8_to_rgba6Blob[2] = {};
 
-ID3D12Resource* pscbuf12 = nullptr;
-D3D12_GPU_VIRTUAL_ADDRESS pscbuf12GPUVA = {};
-void* pscbuf12data = nullptr;
-const UINT pscbuf12paddedSize = (sizeof(PixelShaderConstants) + 0xff) & ~0xff;
+// Vertex Shader blobs/input layouts
+static D3DBlob* SimpleVertexShaderBlob = {};
+static D3DBlob* ClearVertexShaderBlob = {};
 
-#define pscbuf12Slots 10000
-unsigned int current_psc_buf12 = 0; // 0 - pscbuf12Slots;
+static const D3D12_INPUT_ELEMENT_DESC SimpleVertexShaderInputElements[] = {
+	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
 
+static const D3D12_INPUT_LAYOUT_DESC SimpleVertexShaderInputLayout = {
+	SimpleVertexShaderInputElements,
+	ARRAYSIZE(SimpleVertexShaderInputElements)
+};
+
+static const D3D12_INPUT_ELEMENT_DESC ClearVertexShaderInputElements[] =
+{
+	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+
+static const D3D12_INPUT_LAYOUT_DESC ClearVertexShaderInputLayout =
+{
+	ClearVertexShaderInputElements,
+	ARRAYSIZE(ClearVertexShaderInputElements)
+};
+
+// Geometry Shader blobs
+D3DBlob* ClearGeometryShaderBlob = nullptr;
+D3DBlob* CopyGeometryShaderBlob = nullptr;
+
+// Pixel Shader HLSL
 const char clear_program_code[] = {
 	"void main(\n"
 	"out float4 ocol0 : SV_Target,\n"
@@ -58,7 +61,7 @@ const char clear_program_code[] = {
 	"}\n"
 };
 
-// TODO: Find some way to avoid having separate shaders for non-MSAA and MSAA...
+// EXISTINGD3D11TODO: Find some way to avoid having separate shaders for non-MSAA and MSAA...
 const char color_copy_program_code[] = {
 	"sampler samp0 : register(s0);\n"
 	"Texture2DArray Tex0 : register(t0);\n"
@@ -322,8 +325,105 @@ const char reint_rgb8_to_rgba6_msaa[] = {
 	"}\n"
 };
 
+// Vertex Shader HLSL
+const char simple_vertex_shader_hlsl[] = {
+	"struct VSOUTPUT\n"
+	"{\n"
+	"float4 vPosition : POSITION;\n"
+	"float3 vTexCoord : TEXCOORD0;\n"
+	"float  vTexCoord1 : TEXCOORD1;\n"
+	"};\n"
+	"VSOUTPUT main(float4 inPosition : POSITION,float4 inTEX0 : TEXCOORD0)\n"
+	"{\n"
+	"VSOUTPUT OUT;\n"
+	"OUT.vPosition = inPosition;\n"
+	"OUT.vTexCoord = inTEX0.xyz;\n"
+	"OUT.vTexCoord1 = inTEX0.w;\n"
+	"return OUT;\n"
+	"}\n"
+};
 
-D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGBA6ToRGB812(bool multisampled)
+const char clear_vertex_shader_hlsl[] = {
+	"struct VSOUTPUT\n"
+	"{\n"
+	"float4 vPosition   : POSITION;\n"
+	"float4 vColor0   : COLOR0;\n"
+	"};\n"
+	"VSOUTPUT main(float4 inPosition : POSITION,float4 inColor0: COLOR0)\n"
+	"{\n"
+	"VSOUTPUT OUT;\n"
+	"OUT.vPosition = inPosition;\n"
+	"OUT.vColor0 = inColor0;\n"
+	"return OUT;\n"
+	"}\n"
+};
+
+// Geometry Shader HLSL
+const char clear_geometry_shader_hlsl[] = {
+	"struct VSOUTPUT\n"
+	"{\n"
+	"	float4 vPosition   : POSITION;\n"
+	"	float4 vColor0   : COLOR0;\n"
+	"};\n"
+	"struct GSOUTPUT\n"
+	"{\n"
+	"	float4 vPosition   : POSITION;\n"
+	"	float4 vColor0   : COLOR0;\n"
+	"	uint slice    : SV_RenderTargetArrayIndex;\n"
+	"};\n"
+	"[maxvertexcount(6)]\n"
+	"void main(triangle VSOUTPUT o[3], inout TriangleStream<GSOUTPUT> Output)\n"
+	"{\n"
+	"for(int slice = 0; slice < 2; slice++)\n"
+	"{\n"
+	"	for(int i = 0; i < 3; i++)\n"
+	"	{\n"
+	"		GSOUTPUT OUT;\n"
+	"		OUT.vPosition = o[i].vPosition;\n"
+	"		OUT.vColor0 = o[i].vColor0;\n"
+	"		OUT.slice = slice;\n"
+	"		Output.Append(OUT);\n"
+	"	}\n"
+	"	Output.RestartStrip();\n"
+	"}\n"
+	"}\n"
+};
+
+const char copy_geometry_shader_hlsl[] = {
+	"struct VSOUTPUT\n"
+	"{\n"
+	"	float4 vPosition : POSITION;\n"
+	"	float3 vTexCoord : TEXCOORD0;\n"
+	"	float  vTexCoord1 : TEXCOORD1;\n"
+	"};\n"
+	"struct GSOUTPUT\n"
+	"{\n"
+	"	float4 vPosition : POSITION;\n"
+	"	float3 vTexCoord : TEXCOORD0;\n"
+	"	float  vTexCoord1 : TEXCOORD1;\n"
+	"	uint slice    : SV_RenderTargetArrayIndex;\n"
+	"};\n"
+	"[maxvertexcount(6)]\n"
+	"void main(triangle VSOUTPUT o[3], inout TriangleStream<GSOUTPUT> Output)\n"
+	"{\n"
+	"for(int slice = 0; slice < 2; slice++)\n"
+	"{\n"
+	"	for(int i = 0; i < 3; i++)\n"
+	"	{\n"
+	"		GSOUTPUT OUT;\n"
+	"		OUT.vPosition = o[i].vPosition;\n"
+	"		OUT.vTexCoord = o[i].vTexCoord;\n"
+	"		OUT.vTexCoord.z = slice;\n"
+	"		OUT.vTexCoord1 = o[i].vTexCoord1;\n"
+	"		OUT.slice = slice;\n"
+	"		Output.Append(OUT);\n"
+	"	}\n"
+	"	Output.RestartStrip();\n"
+	"}\n"
+	"}\n"
+};
+
+D3D12_SHADER_BYTECODE StaticShaderCache::GetReinterpRGBA6ToRGB8PixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -348,7 +448,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGBA6ToRGB812(bool multisampled)
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGB8ToRGBA612(bool multisampled)
+D3D12_SHADER_BYTECODE StaticShaderCache::GetReinterpRGB8ToRGBA6PixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -374,7 +474,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::ReinterpRGB8ToRGBA612(bool multisampled)
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetColorCopyProgram12(bool multisampled)
+D3D12_SHADER_BYTECODE StaticShaderCache::GetColorCopyPixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -398,7 +498,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorCopyProgram12(bool multisampled)
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthCopyProgram12(bool multisampled)
+D3D12_SHADER_BYTECODE StaticShaderCache::GetDepthCopyPixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -422,7 +522,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthCopyProgram12(bool multisampled)
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetColorMatrixProgram12(bool multisampled)
+D3D12_SHADER_BYTECODE StaticShaderCache::GetColorMatrixPixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -446,7 +546,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetColorMatrixProgram12(bool multisample
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthMatrixProgram12(bool multisampled)
+D3D12_SHADER_BYTECODE StaticShaderCache::GetDepthMatrixPixelShader(bool multisampled)
 {
 	D3D12_SHADER_BYTECODE bytecode = {};
 
@@ -471,7 +571,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetDepthMatrixProgram12(bool multisample
 	return bytecode;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetClearProgram12()
+D3D12_SHADER_BYTECODE StaticShaderCache::GetClearPixelShader()
 {
 	D3D12_SHADER_BYTECODE shader = {};
 	shader.BytecodeLength = s_ClearProgramBlob->Size();
@@ -480,7 +580,7 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetClearProgram12()
 	return shader;
 }
 
-D3D12_SHADER_BYTECODE PixelShaderCache::GetAnaglyphProgram12()
+D3D12_SHADER_BYTECODE StaticShaderCache::GetAnaglyphPixelShader()
 {
 	D3D12_SHADER_BYTECODE shader = {};
 	shader.BytecodeLength = s_AnaglyphProgramBlob->Size();
@@ -489,111 +589,79 @@ D3D12_SHADER_BYTECODE PixelShaderCache::GetAnaglyphProgram12()
 	return shader;
 }
 
-void PixelShaderCache::GetConstantBuffer12()
+D3D12_SHADER_BYTECODE StaticShaderCache::GetSimpleVertexShader()
 {
-	if (PixelShaderManager::dirty)
-	{
-		//current_psc_buf12 = (current_psc_buf12 + 1) % pscbuf12Slots;
-		current_psc_buf12 += pscbuf12paddedSize;
+	D3D12_SHADER_BYTECODE shader = {};
+	shader.BytecodeLength = SimpleVertexShaderBlob->Size();
+	shader.pShaderBytecode = SimpleVertexShaderBlob->Data();
 
-		memcpy((u8*)pscbuf12data + current_psc_buf12, &PixelShaderManager::constants, sizeof(PixelShaderConstants));
-
-		PixelShaderManager::dirty = false;
-
-		ADDSTAT(stats.thisFrame.bytesUniformStreamed, sizeof(PixelShaderConstants));
-
-		D3D::command_list_mgr->m_dirty_ps_cbv = true;
-	}
-
-	if (D3D::command_list_mgr->m_dirty_ps_cbv)
-	{
-		D3D::current_command_list->SetGraphicsRootConstantBufferView(
-			DESCRIPTOR_TABLE_PS_CBVONE,
-			pscbuf12GPUVA + current_psc_buf12
-			);
-
-		D3D::command_list_mgr->m_dirty_ps_cbv = false;
-	}
+	return shader;
 }
 
-// this class will load the precompiled shaders into our cache
-class PixelShaderCacheInserter : public LinearDiskCacheReader<PixelShaderUid, u8>
+D3D12_SHADER_BYTECODE StaticShaderCache::GetClearVertexShader()
 {
-public:
-	void Read(const PixelShaderUid &key, const u8* value, u32 value_size)
+	D3D12_SHADER_BYTECODE shader = {};
+	shader.BytecodeLength = ClearVertexShaderBlob->Size();
+	shader.pShaderBytecode = ClearVertexShaderBlob->Data();
+
+	return shader;
+}
+
+D3D12_INPUT_LAYOUT_DESC StaticShaderCache::GetSimpleVertexShaderInputLayout()
+{
+	return SimpleVertexShaderInputLayout;
+}
+
+D3D12_INPUT_LAYOUT_DESC StaticShaderCache::GetClearVertexShaderInputLayout()
+{
+	return ClearVertexShaderInputLayout;
+}
+
+D3D12_SHADER_BYTECODE StaticShaderCache::GetClearGeometryShader()
+{
+	D3D12_SHADER_BYTECODE bytecode = {};
+	if (g_ActiveConfig.iStereoMode > 0)
 	{
-		PixelShaderCache::InsertByteCode(key, value, value_size);
+		bytecode.BytecodeLength = ClearGeometryShaderBlob->Size();
+		bytecode.pShaderBytecode = ClearGeometryShaderBlob->Data();
 	}
-};
 
-void PixelShaderCache::Init()
+	return bytecode;
+}
+
+D3D12_SHADER_BYTECODE StaticShaderCache::GetCopyGeometryShader()
 {
-	unsigned int pscbuf12sizeInBytes = pscbuf12paddedSize * pscbuf12Slots;
-	CheckHR(D3D::device12->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(pscbuf12sizeInBytes), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&pscbuf12)));
-	D3D::SetDebugObjectName12(pscbuf12, "pixel shader constant buffer used to emulate the GX pipeline");
+	D3D12_SHADER_BYTECODE bytecode = {};
+	if (g_ActiveConfig.iStereoMode > 0)
+	{
+		bytecode.BytecodeLength = CopyGeometryShaderBlob->Size();
+		bytecode.pShaderBytecode = CopyGeometryShaderBlob->Data();
+	}
 
-	// Obtain persistent CPU pointer to PS Constant Buffer
-	CheckHR(pscbuf12->Map(0, nullptr, &pscbuf12data));
+	return bytecode;
+}
 
-	// Obtain GPU VA for buffer, used at binding time.
-	pscbuf12GPUVA = pscbuf12->GetGPUVirtualAddress();
-
-	// used when drawing clear quads
+void StaticShaderCache::Init()
+{
+	// Compile static pixel shaders
 	D3D::CompilePixelShader(clear_program_code, &s_ClearProgramBlob);
-
-	// used for anaglyph stereoscopy
 	D3D::CompilePixelShader(anaglyph_program_code, &s_AnaglyphProgramBlob);
-
-	// used when copying/resolving the color buffer
 	D3D::CompilePixelShader(color_copy_program_code, &s_ColorCopyProgramBlob[0]);
-
-	// used when copying/resolving the depth buffer
 	D3D::CompilePixelShader(depth_copy_program_code, &s_DepthCopyProgramBlob[0]);
-
-	// used for color conversion
 	D3D::CompilePixelShader(color_matrix_program_code, &s_ColorMatrixProgramBlob[0]);
-
-	// used for depth copy
 	D3D::CompilePixelShader(depth_matrix_program, &s_DepthMatrixProgramBlob[0]);
+	
+	// Compile static vertex shaders
+	D3D::CompileVertexShader(simple_vertex_shader_hlsl, &SimpleVertexShaderBlob);
+	D3D::CompileVertexShader(clear_vertex_shader_hlsl, &ClearVertexShaderBlob);
 
-	Clear();
-
-	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
-		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
-
-	SETSTAT(stats.numPixelShadersCreated, 0);
-	SETSTAT(stats.numPixelShadersAlive, 0);
-
-	// Intentionally share the same cache as DX11, as the shaders are identical. Reduces recompilation when switching APIs.
-	std::string cache_filename = StringFromFormat("%sdx11-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX).c_str(),
-			SConfig::GetInstance().m_strUniqueID.c_str());
-	PixelShaderCacheInserter inserter;
-	g_ps_disk_cache.OpenAndRead(cache_filename, inserter);
-
-	if (g_Config.bEnableShaderDebugging)
-		Clear();
-
-	last_entry = nullptr;
-	last_uid = {};
+	// Compile static geometry shaders
+	D3D::CompileGeometryShader(clear_geometry_shader_hlsl, &ClearGeometryShaderBlob);
+	D3D::CompileGeometryShader(copy_geometry_shader_hlsl, &CopyGeometryShaderBlob);
 }
 
-// ONLY to be used during shutdown.
-void PixelShaderCache::Clear()
-{
-	for (auto& iter : PixelShaders)
-	{
-		iter.second.Destroy();
-		delete iter.second.shaderDesc.pShaderBytecode;
-	}
-
-	PixelShaders.clear();
-	pixel_uid_checker.Invalidate();
-
-	last_entry = nullptr;
-}
-
-// Used in Swap() when AA mode has changed
-void PixelShaderCache::InvalidateMSAAShaders()
+// Call this when multisampling mode changes, and shaders need to be regenerated.
+void StaticShaderCache::InvalidateMSAAShaders()
 {
 	SAFE_RELEASE(s_ColorCopyProgramBlob[1]);
 	SAFE_RELEASE(s_ColorMatrixProgramBlob[1]);
@@ -602,14 +670,14 @@ void PixelShaderCache::InvalidateMSAAShaders()
 	SAFE_RELEASE(s_rgba6_to_rgb8Blob[1]);
 }
 
-void PixelShaderCache::Shutdown()
+void StaticShaderCache::Shutdown()
 {
-	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(pscbuf12);
+	// Free pixel shader blobs
 
 	SAFE_RELEASE(s_ClearProgramBlob);
 	SAFE_RELEASE(s_AnaglyphProgramBlob);
-	
-	for (int i = 0; i < 2; ++i)
+
+	for (unsigned int i = 0; i < 2; ++i)
 	{
 		SAFE_RELEASE(s_ColorCopyProgramBlob[i]);
 		SAFE_RELEASE(s_ColorMatrixProgramBlob[i]);
@@ -618,90 +686,15 @@ void PixelShaderCache::Shutdown()
 		SAFE_RELEASE(s_rgb8_to_rgba6Blob[i]);
 	}
 
-	Clear();
-	g_ps_disk_cache.Sync();
-	g_ps_disk_cache.Close();
+	// Free vertex shader blobs
+
+	SAFE_RELEASE(SimpleVertexShaderBlob);
+	SAFE_RELEASE(ClearVertexShaderBlob);
+
+	// Free geometry shader blobs
+
+	ClearGeometryShaderBlob->Release();
+	CopyGeometryShaderBlob->Release();
 }
 
-bool PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode)
-{
-	PixelShaderUid uid = GetPixelShaderUid(dstAlphaMode, API_D3D);
-
-	// Check if the shader is already set
-	if (uid == last_uid)
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE,true);
-		return (last_entry->shaderDesc.pShaderBytecode != nullptr);
-	}
-
-	last_uid = uid;
-	D3D::command_list_mgr->m_dirty_pso = true;
-
-	if (g_ActiveConfig.bEnableShaderDebugging)
-	{
-		ShaderCode code = GeneratePixelShaderCode(dstAlphaMode, API_D3D);
-		pixel_uid_checker.AddToIndexAndCheck(code, uid, "Pixel", "p");
-	}
-
-	// Check if the shader is already in the cache
-	PSCache::iterator iter;
-	iter = PixelShaders.find(uid);
-	if (iter != PixelShaders.end())
-	{
-		const PSCacheEntry &entry = iter->second;
-		last_entry = &entry;
-
-		GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE,true);
-		return (entry.shaderDesc.pShaderBytecode != nullptr);
-	}
-
-	// Need to compile a new shader
-	ShaderCode code = GeneratePixelShaderCode(dstAlphaMode, API_D3D);
-
-	D3DBlob* pbytecode;
-	if (!D3D::CompilePixelShader(code.GetBuffer(), &pbytecode))
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);
-		return false;
-	}
-
-	// Insert the bytecode into the caches
-	g_ps_disk_cache.Append(uid, pbytecode->Data(), pbytecode->Size());
-
-	bool success = InsertByteCode(uid, pbytecode->Data(), pbytecode->Size());
-	pbytecode->Release();
-
-	if (g_ActiveConfig.bEnableShaderDebugging && success)
-	{
-		PixelShaders[uid].code = code.GetBuffer();
-	}
-
-	GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE, true);
-	return success;
 }
-
-bool PixelShaderCache::InsertByteCode(const PixelShaderUid &uid, const void* bytecode, unsigned int bytecodelen)
-{
-	// Make an entry in the table
-	PSCacheEntry newentry;
-
-	// In D3D12, shader bytecode is needed at Pipeline State creation time, so make a copy (as LinearDiskCache frees original after load).
-	newentry.shaderDesc.BytecodeLength = bytecodelen;
-	newentry.shaderDesc.pShaderBytecode = new u8[bytecodelen];
-	memcpy(const_cast<void*>(newentry.shaderDesc.pShaderBytecode), bytecode, bytecodelen);
-
-	PixelShaders[uid] = newentry;
-	last_entry = &PixelShaders[uid];
-
-	if (!bytecode)
-	{
-		// INCSTAT(stats.numPixelShadersFailed);
-		return false;
-	}
-
-	INCSTAT(stats.numPixelShadersCreated);
-	SETSTAT(stats.numPixelShadersAlive, PixelShaders.size());
-	return true;
-}
-
-}  // DX12

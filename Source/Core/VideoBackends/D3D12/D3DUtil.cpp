@@ -13,9 +13,7 @@
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/D3DTexture.h"
 #include "VideoBackends/D3D12/D3DUtil.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
+#include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/Render.h"
 
 namespace DX12
@@ -777,17 +775,17 @@ void DrawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {
 		default_root_signature,                           // ID3D12RootSignature *pRootSignature;
-		VertexShaderCache::GetClearVertexShader12(),	  // D3D12_SHADER_BYTECODE VS;
-		PixelShaderCache::GetClearProgram12(),		      // D3D12_SHADER_BYTECODE PS;
+		StaticShaderCache::GetClearVertexShader(),        // D3D12_SHADER_BYTECODE VS;
+		StaticShaderCache::GetClearPixelShader(),         // D3D12_SHADER_BYTECODE PS;
 		{},                                               // D3D12_SHADER_BYTECODE DS;
 		{},                                               // D3D12_SHADER_BYTECODE HS;
-		GeometryShaderCache::GetClearGeometryShader12(),  // D3D12_SHADER_BYTECODE GS;
+		StaticShaderCache::GetClearGeometryShader(),      // D3D12_SHADER_BYTECODE GS;
 		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
 		*blend_desc,                                      // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
 		resetraststate12,                                 // D3D12_RASTERIZER_DESC RasterizerState
 		*depth_stencil_desc,                              // D3D12_DEPTH_STENCIL_DESC DepthStencilState
-		VertexShaderCache::GetClearInputLayout12(),       // D3D12_INPUT_LAYOUT_DESC InputLayout
+		StaticShaderCache::GetClearVertexShaderInputLayout(), // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,           // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType
 		1,                                                // UINT NumRenderTargets
@@ -850,19 +848,19 @@ void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {
 		default_root_signature,                           // ID3D12RootSignature *pRootSignature;
-		VertexShaderCache::GetClearVertexShader12(),      // D3D12_SHADER_BYTECODE VS;
-		PixelShaderCache::GetClearProgram12(),            // D3D12_SHADER_BYTECODE PS;
+		StaticShaderCache::GetClearVertexShader(),        // D3D12_SHADER_BYTECODE VS;
+		StaticShaderCache::GetClearPixelShader(),         // D3D12_SHADER_BYTECODE PS;
 		{},                                               // D3D12_SHADER_BYTECODE DS;
 		{},                                               // D3D12_SHADER_BYTECODE HS;
 		g_ActiveConfig.iStereoMode > 0 ?
-		GeometryShaderCache::GetClearGeometryShader12() :
+		StaticShaderCache::GetClearGeometryShader() :
 		D3D12_SHADER_BYTECODE(),                          // D3D12_SHADER_BYTECODE GS;
 		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
 		*blend_desc,                                      // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
 		resetraststate12,                                 // D3D12_RASTERIZER_DESC RasterizerState
 		*depth_stencil_desc,                              // D3D12_DEPTH_STENCIL_DESC DepthStencilState
-		VertexShaderCache::GetClearInputLayout12(),       // D3D12_INPUT_LAYOUT_DESC InputLayout
+		StaticShaderCache::GetClearVertexShaderInputLayout(), // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,           // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType
 		1,                                                // UINT NumRenderTargets
