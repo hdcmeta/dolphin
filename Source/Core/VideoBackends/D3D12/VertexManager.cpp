@@ -211,8 +211,6 @@ void VertexManager::vFlush(bool useDstAlpha)
 
 	Draw(stride);
 
-#ifdef USE_D3D12_FREQUENT_EXECUTION
-
 	D3D::command_list_mgr->m_draws_since_last_execution++;
 
 	// Many Gamecube/Wii titles read from the EFB each frame to determine what new rendering work to submit, e.g. where sun rays are
@@ -234,8 +232,6 @@ void VertexManager::vFlush(bool useDstAlpha)
 
 		D3D::current_command_list->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV12(), FALSE, &FramebufferManager::GetEFBDepthTexture()->GetDSV12());
 	}
-
-#endif
 }
 
 u8* lastGpuVertexBufferLocation = nullptr;

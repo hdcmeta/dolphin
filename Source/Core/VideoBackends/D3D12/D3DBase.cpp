@@ -849,11 +849,9 @@ void Present()
 
 	backbuf[current_back_buf]->TransitionToResourceState(current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-#ifdef USE_D3D12_FREQUENT_EXECUTION
 	command_list_mgr->m_cpu_access_last_frame = command_list_mgr->m_cpu_access_this_frame;
 	command_list_mgr->m_cpu_access_this_frame = false;
 	command_list_mgr->m_draws_since_last_execution = 0;
-#endif
 }
 
 HRESULT SetFullscreenState(bool enable_fullscreen)
