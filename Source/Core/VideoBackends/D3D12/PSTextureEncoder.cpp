@@ -128,9 +128,7 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 		return;
 
 	{
-#ifdef USE_D3D12_FREQUENT_EXECUTION
 		D3D::command_list_mgr->CPUAccessNotify();
-#endif
 
 		const u32 words_per_row = bytes_per_row / sizeof(u32);
 

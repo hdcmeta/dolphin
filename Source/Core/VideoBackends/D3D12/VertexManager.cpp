@@ -211,8 +211,6 @@ void VertexManager::vFlush(bool useDstAlpha)
 
 	Draw(stride);
 
-#ifdef USE_D3D12_FREQUENT_EXECUTION
-
 	D3D::command_list_mgr->m_draws_since_last_execution++;
 
 	// Many Gamecube/Wii titles read from the EFB each frame to determine what new rendering work to submit, e.g. where sun rays are
@@ -222,7 +220,7 @@ void VertexManager::vFlush(bool useDstAlpha)
 	// the GPU to finish all of its work, there is (hopefully) less work outstanding to wait on at that moment.
 
 	// D3D12TODO: Decide right threshold for drawCountSinceAsyncFlush at runtime depending on 
-	// amount of stall measured in AccessEFB's Flushcommand_listAndWait call.
+	// amount of stall measured in AccessEFB.
 
 	if (D3D::command_list_mgr->m_draws_since_last_execution > 100 && D3D::command_list_mgr->m_cpu_access_last_frame)
 	{
@@ -234,8 +232,6 @@ void VertexManager::vFlush(bool useDstAlpha)
 
 		D3D::current_command_list->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV12(), FALSE, &FramebufferManager::GetEFBDepthTexture()->GetDSV12());
 	}
-
-#endif
 }
 
 u8* lastGpuVertexBufferLocation = nullptr;

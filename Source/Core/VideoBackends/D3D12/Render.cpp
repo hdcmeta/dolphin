@@ -429,9 +429,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 	if (type == PEEK_Z)
 	{
-#ifdef USE_D3D12_FREQUENT_EXECUTION
 		D3D::command_list_mgr->CPUAccessNotify();
-#endif
 
 		// depth buffers can only be completely CopySubresourceRegion'ed, so we're using DrawShadedTexQuad instead
 		// D3D12TODO: Is above statement true on D3D12?
@@ -517,9 +515,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 	}
 	else if (type == PEEK_COLOR)
 	{
-#ifdef USE_D3D12_FREQUENT_EXECUTION
 		D3D::command_list_mgr->CPUAccessNotify();
-#endif
 
 		// we can directly copy to system memory here
 		read_tex12 = FramebufferManager::GetEFBColorStagingBuffer12();
