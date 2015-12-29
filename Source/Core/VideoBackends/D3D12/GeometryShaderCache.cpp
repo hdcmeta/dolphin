@@ -25,16 +25,6 @@
 namespace DX12
 {
 
-GeometryShaderCache::GSCache GeometryShaderCache::GeometryShaders;
-const GeometryShaderCache::GSCacheEntry* GeometryShaderCache::last_entry;
-GeometryShaderUid GeometryShaderCache::last_uid = {};
-UidChecker<GeometryShaderUid,ShaderCode> GeometryShaderCache::geometry_uid_checker;
-const GeometryShaderCache::GSCacheEntry GeometryShaderCache::pass_entry;
-
-D3D12_PRIMITIVE_TOPOLOGY_TYPE currentPrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-LinearDiskCache<GeometryShaderUid, u8> g_gs_disk_cache;
-
 ID3D12Resource* gscbuf12 = nullptr;
 void* gscbuf12data = nullptr;
 static const UINT gscbuf12paddedSize = (sizeof(GeometryShaderConstants) + 0xff) & ~0xff;
@@ -68,20 +58,7 @@ void GeometryShaderCache::GetConstantBuffer12()
 	}
 }
 
-D3D12_PRIMITIVE_TOPOLOGY_TYPE GeometryShaderCache::GetCurrentPrimitiveTopology()
-{
-	return currentPrimitiveTopology;
-}
 
-// this class will load the precompiled shaders into our cache
-class GeometryShaderCacheInserter : public LinearDiskCacheReader<GeometryShaderUid, u8>
-{
-public:
-	void Read(const GeometryShaderUid &key, const u8* value, u32 value_size)
-	{
-		GeometryShaderCache::InsertByteCode(key, value, value_size);
-	}
-};
 
 void GeometryShaderCache::Init()
 {
@@ -104,119 +81,10 @@ void GeometryShaderCache::Init()
 	CheckHR(gscbuf12->Map(0, nullptr, &gscbuf12data));
 }
 
-// ONLY to be used during shutdown.
-void GeometryShaderCache::Clear()
-{
-	for (auto& iter : GeometryShaders)
-		iter.second.Destroy();
-	GeometryShaders.clear();
-	geometry_uid_checker.Invalidate();
-
-	last_entry = nullptr;
-}
 
 void GeometryShaderCache::Shutdown()
 {
 	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(gscbuf12);
-
-	Clear();
-	g_gs_disk_cache.Sync();
-	g_gs_disk_cache.Close();
-}
-
-bool GeometryShaderCache::SetShader(u32 primitive_type)
-{
-	switch (primitive_type)
-	{
-	case PRIMITIVE_TRIANGLES:
-		currentPrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		break;
-	case PRIMITIVE_LINES:
-		currentPrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-		break;
-	case PRIMITIVE_POINTS:
-		currentPrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-		break;
-	default:
-		CHECK(0, "Invalid primitive type.");
-		break;
-	}
-
-	GeometryShaderUid uid = GetGeometryShaderUid(primitive_type, API_D3D);
-
-	// Check if the shader is already set
-	if (uid == last_uid)
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE,true);
-		return true;
-	}
-
-	last_uid = uid;
-	D3D::command_list_mgr->m_dirty_pso = true;
-
-	if (g_ActiveConfig.bEnableShaderDebugging)
-	{
-		ShaderCode code = GenerateGeometryShaderCode(primitive_type, API_D3D);
-		geometry_uid_checker.AddToIndexAndCheck(code, uid, "Geometry", "g");
-	}
-
-	// Check if the shader is a pass-through shader
-	if (uid.GetUidData()->IsPassthrough())
-	{
-		// Return the default pass-through shader
-		last_entry = &pass_entry;
-		return true;
-	}
-
-	// Check if the shader is already in the cache
-	GSCache::iterator iter;
-	iter = GeometryShaders.find(uid);
-	if (iter != GeometryShaders.end())
-	{
-		const GSCacheEntry &entry = iter->second;
-		last_entry = &entry;
-
-		return (entry.shader12.pShaderBytecode != nullptr);
-	}
-
-	// Need to compile a new shader
-	ShaderCode code = GenerateGeometryShaderCode(primitive_type, API_D3D);
-
-	D3DBlob* pbytecode;
-	if (!D3D::CompileGeometryShader(code.GetBuffer(), &pbytecode))
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);
-		return false;
-	}
-
-	// Insert the bytecode into the caches
-	g_gs_disk_cache.Append(uid, pbytecode->Data(), pbytecode->Size());
-
-	bool success = InsertByteCode(uid, pbytecode->Data(), pbytecode->Size());
-	pbytecode->Release();
-
-	if (g_ActiveConfig.bEnableShaderDebugging && success)
-	{
-		GeometryShaders[uid].code = code.GetBuffer();
-	}
-
-	return success;
-}
-
-bool GeometryShaderCache::InsertByteCode(const GeometryShaderUid &uid, const void* bytecode, unsigned int bytecodelen)
-{
-	// Make an entry in the table
-	GSCacheEntry newentry;
-
-	// In D3D12, shader bytecode is needed at Pipeline State creation time, so make a copy (as LinearDiskCache frees original after load).
-	newentry.shader12.BytecodeLength = bytecodelen;
-	newentry.shader12.pShaderBytecode = new u8[bytecodelen];
-	memcpy(const_cast<void*>(newentry.shader12.pShaderBytecode), bytecode, bytecodelen);
-
-	GeometryShaders[uid] = newentry;
-	last_entry = &GeometryShaders[uid];
-
-	return true;
 }
 
 }  // DX12

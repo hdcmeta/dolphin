@@ -24,6 +24,7 @@
 #include "VideoBackends/D3D12/FramebufferManager.h"
 #include "VideoBackends/D3D12/NativeVertexFormat.h"
 #include "VideoBackends/D3D12/Render.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
 #include "VideoBackends/D3D12/StaticShaderCache.h"
 #include "VideoBackends/D3D12/Television.h"
 #include "VideoBackends/D3D12/TextureCache.h"
@@ -1198,7 +1199,7 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 	{
 		pOldVertextFormat = reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat());
 
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = GeometryShaderCache::GetCurrentPrimitiveTopology();
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = ShaderCache::GetCurrentPrimitiveTopology();
 		RasterizerState modifiableRastState = gx_state.raster;
 
 		if (topologyType != D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE)
@@ -1207,9 +1208,9 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		}
 
 		SmallPsoDesc pso_desc = {
-			VertexShaderCache::GetActiveShader12(),     // D3D12_SHADER_BYTECODE VS;
-			PixelShaderCache::GetActiveShader12(),      // D3D12_SHADER_BYTECODE PS;
-			GeometryShaderCache::GetActiveShader12(),   // D3D12_SHADER_BYTECODE GS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_VERTEX_SHADER),   // D3D12_SHADER_BYTECODE VS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_PIXEL_SHADER),    // D3D12_SHADER_BYTECODE PS;
+			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_GEOMETRY_SHADER), // D3D12_SHADER_BYTECODE GS;
 			pOldVertextFormat,							// D3D12_INPUT_LAYOUT_DESC InputLayout;
 			gx_state.blend,                             // BlendState BlendState;
 			modifiableRastState,                        // RasterizerState RasterizerState;
@@ -1224,8 +1225,16 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		}
 
 		ID3D12PipelineState* pso = nullptr;
-		CheckHR(gx_state_cache.GetPipelineStateObjectFromCache(&pso_desc, &pso, topologyType, PixelShaderCache::GetActiveShaderUid12(), VertexShaderCache::GetActiveShaderUid12(), GeometryShaderCache::GetActiveShaderUid12()));
-
+		CheckHR(
+			gx_state_cache.GetPipelineStateObjectFromCache(
+				&pso_desc,
+				&pso,
+				topologyType,
+				reinterpret_cast<const PixelShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_PIXEL_SHADER)),
+				reinterpret_cast<const VertexShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_VERTEX_SHADER)),
+				reinterpret_cast<const GeometryShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_GEOMETRY_SHADER))
+				)
+			);
 		D3D::current_command_list->SetPipelineState(pso);
 
 		D3D::command_list_mgr->m_dirty_pso = false;

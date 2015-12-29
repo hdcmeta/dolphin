@@ -88,7 +88,7 @@ public:
 	static D3D12_DEPTH_STENCIL_DESC GetDesc12(ZMode state);
 
 	HRESULT GetPipelineStateObjectFromCache(D3D12_GRAPHICS_PIPELINE_STATE_DESC* pso_desc, ID3D12PipelineState** pso);
-	HRESULT GetPipelineStateObjectFromCache(SmallPsoDesc* pso_desc, ID3D12PipelineState** pso, D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, PixelShaderUid ps_uid, VertexShaderUid vs_uid, GeometryShaderUid gs_uid);
+	HRESULT GetPipelineStateObjectFromCache(SmallPsoDesc* pso_desc, ID3D12PipelineState** pso, D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, const PixelShaderUid* ps_uid, const VertexShaderUid* vs_uid, const GeometryShaderUid* gs_uid);
 
 	StateCache();
 

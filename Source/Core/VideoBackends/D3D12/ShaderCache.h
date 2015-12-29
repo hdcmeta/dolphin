@@ -26,14 +26,18 @@ public:
 	static void Clear();
 	static void Shutdown();
 
-	static bool LoadAndSetAsActiveShader(DSTALPHA_MODE dstAlphaMode);
-	static bool InsertByteCode(const ShaderGeneratorInterface& uid, SHADER_STAGE stage, const void* bytecode, unsigned int bytecodelen);
+	static void LoadAndSetActiveShaders(DSTALPHA_MODE ps_dst_alpha_mode, u32 gs_primitive_type);
 
-	static const D3D12_SHADER_BYTECODE* GetActiveShaderBytecode(SHADER_STAGE stage);
+	static void InsertByteCode(const ShaderGeneratorInterface& uid, SHADER_STAGE stage, D3DBlob* bytecode);
+
+	static D3D12_SHADER_BYTECODE GetActiveShaderBytecode(SHADER_STAGE stage);
 
 	// The various uid flavors inherit from ShaderGeneratorInterface.
 	static const ShaderGeneratorInterface* GetActiveShaderUid(SHADER_STAGE stage);
-	static const D3D12_SHADER_BYTECODE* GetShaderFromUid(SHADER_STAGE stage, ShaderGeneratorInterface* uid);
+	static D3D12_SHADER_BYTECODE GetShaderFromUid(SHADER_STAGE stage, const ShaderGeneratorInterface* uid);
+
+	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetCurrentPrimitiveTopology();
+
 };
 
 }

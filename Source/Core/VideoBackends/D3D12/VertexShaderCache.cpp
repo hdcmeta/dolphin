@@ -22,13 +22,6 @@
 
 namespace DX12 {
 
-VertexShaderCache::VSCache VertexShaderCache::vshaders;
-const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
-VertexShaderUid VertexShaderCache::last_uid = {};
-UidChecker<VertexShaderUid,ShaderCode> VertexShaderCache::vertex_uid_checker;
-
-LinearDiskCache<VertexShaderUid, u8> g_vs_disk_cache;
-
 ID3D12Resource* vscbuf12 = nullptr;
 D3D12_GPU_VIRTUAL_ADDRESS vscbuf12GPUVA = {};
 
@@ -81,17 +74,6 @@ void VertexShaderCache::GetConstantBuffer12()
 	}
 }
 
-// this class will load the precompiled shaders into our cache
-class VertexShaderCacheInserter : public LinearDiskCacheReader<VertexShaderUid, u8>
-{
-public:
-	void Read(const VertexShaderUid &key, const u8* value, u32 value_size)
-	{
-		D3DBlob* blob = new D3DBlob(value_size, value);
-		VertexShaderCache::InsertByteCode(key, blob);
-	}
-};
-
 void VertexShaderCache::Init()
 {
 	unsigned int vscbuf12sizeInBytes = vscbuf12paddedSize * vscbuf12Slots;
@@ -116,97 +98,9 @@ void VertexShaderCache::Init()
 	vscbuf12GPUVA = vscbuf12->GetGPUVirtualAddress();
 }
 
-void VertexShaderCache::Clear()
-{
-	for (auto& iter : vshaders)
-		iter.second.Destroy();
-	vshaders.clear();
-	vertex_uid_checker.Invalidate();
-
-	last_entry = nullptr;
-}
-
 void VertexShaderCache::Shutdown()
 {
 	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(vscbuf12);
-
-	Clear();
-	g_vs_disk_cache.Sync();
-	g_vs_disk_cache.Close();
-}
-
-bool VertexShaderCache::SetShader()
-{
-	VertexShaderUid uid = GetVertexShaderUid(API_D3D);
-
-	if (uid == last_uid)
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_VERTEX_SHADER_CHANGE, true);
-		return (last_entry->shader12.pShaderBytecode != nullptr);
-	}
-
-	last_uid = uid;
-	D3D::command_list_mgr->m_dirty_pso = true;
-
-	if (g_ActiveConfig.bEnableShaderDebugging)
-	{
-		ShaderCode code = GenerateVertexShaderCode(API_D3D);
-		vertex_uid_checker.AddToIndexAndCheck(code, uid, "Vertex", "v");
-	}
-
-	VSCache::iterator iter = vshaders.find(uid);
-	if (iter != vshaders.end())
-	{
-		const VSCacheEntry &entry = iter->second;
-		last_entry = &entry;
-
-		GFX_DEBUGGER_PAUSE_AT(NEXT_VERTEX_SHADER_CHANGE, true);
-		return (entry.shader12.pShaderBytecode != nullptr);
-	}
-
-	ShaderCode code = GenerateVertexShaderCode(API_D3D);
-
-	D3DBlob* pbytecode = nullptr;
-	D3D::CompileVertexShader(code.GetBuffer(), &pbytecode);
-
-	if (pbytecode == nullptr)
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);
-		return false;
-	}
-	g_vs_disk_cache.Append(uid, pbytecode->Data(), pbytecode->Size());
-
-	bool success = InsertByteCode(uid, pbytecode);
-	pbytecode->Release();
-
-	if (g_ActiveConfig.bEnableShaderDebugging && success)
-	{
-		vshaders[uid].code = code.GetBuffer();
-	}
-
-	GFX_DEBUGGER_PAUSE_AT(NEXT_VERTEX_SHADER_CHANGE, true);
-	return success;
-}
-
-bool VertexShaderCache::InsertByteCode(const VertexShaderUid &uid, D3DBlob* bcodeblob)
-{
-	// Make an entry in the table
-	VSCacheEntry entry;
-
-	// In D3D12, shader bytecode is needed at Pipeline State creation time. The D3D11 path already kept shader bytecode around
-	// for subsequent InputLayout creation, so just take advantage of that.
-
-	entry.SetByteCode(bcodeblob);
-	entry.shader12.BytecodeLength = bcodeblob->Size();
-	entry.shader12.pShaderBytecode = bcodeblob->Data();
-
-	vshaders[uid] = entry;
-	last_entry = &vshaders[uid];
-
-	INCSTAT(stats.numVertexShadersCreated);
-	SETSTAT(stats.numVertexShadersAlive, (int)vshaders.size());
-
-	return true;
 }
 
 }  // namespace DX12

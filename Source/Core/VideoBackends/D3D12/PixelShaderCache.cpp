@@ -24,14 +24,6 @@
 
 namespace DX12
 {
-
-PixelShaderCache::PSCache PixelShaderCache::PixelShaders;
-const PixelShaderCache::PSCacheEntry* PixelShaderCache::last_entry;
-PixelShaderUid PixelShaderCache::last_uid = {};
-UidChecker<PixelShaderUid,ShaderCode> PixelShaderCache::pixel_uid_checker;
-
-LinearDiskCache<PixelShaderUid, u8> g_ps_disk_cache;
-
 ID3D12Resource* pscbuf12 = nullptr;
 D3D12_GPU_VIRTUAL_ADDRESS pscbuf12GPUVA = {};
 void* pscbuf12data = nullptr;
@@ -67,16 +59,6 @@ void PixelShaderCache::GetConstantBuffer12()
 	}
 }
 
-// this class will load the precompiled shaders into our cache
-class PixelShaderCacheInserter : public LinearDiskCacheReader<PixelShaderUid, u8>
-{
-public:
-	void Read(const PixelShaderUid &key, const u8* value, u32 value_size)
-	{
-		PixelShaderCache::InsertByteCode(key, value, value_size);
-	}
-};
-
 void PixelShaderCache::Init()
 {
 	unsigned int pscbuf12sizeInBytes = pscbuf12paddedSize * pscbuf12Slots;
@@ -90,109 +72,9 @@ void PixelShaderCache::Init()
 	pscbuf12GPUVA = pscbuf12->GetGPUVirtualAddress();
 }
 
-// ONLY to be used during shutdown.
-void PixelShaderCache::Clear()
-{
-	for (auto& iter : PixelShaders)
-	{
-		iter.second.Destroy();
-		delete iter.second.shaderDesc.pShaderBytecode;
-	}
-
-	PixelShaders.clear();
-	pixel_uid_checker.Invalidate();
-
-	last_entry = nullptr;
-}
-
 void PixelShaderCache::Shutdown()
 {
 	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(pscbuf12);
-
-	Clear();
-	g_ps_disk_cache.Sync();
-	g_ps_disk_cache.Close();
-}
-
-bool PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode)
-{
-	PixelShaderUid uid = GetPixelShaderUid(dstAlphaMode, API_D3D);
-
-	// Check if the shader is already set
-	if (uid == last_uid)
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE,true);
-		return (last_entry->shaderDesc.pShaderBytecode != nullptr);
-	}
-
-	last_uid = uid;
-	D3D::command_list_mgr->m_dirty_pso = true;
-
-	if (g_ActiveConfig.bEnableShaderDebugging)
-	{
-		ShaderCode code = GeneratePixelShaderCode(dstAlphaMode, API_D3D);
-		pixel_uid_checker.AddToIndexAndCheck(code, uid, "Pixel", "p");
-	}
-
-	// Check if the shader is already in the cache
-	PSCache::iterator iter;
-	iter = PixelShaders.find(uid);
-	if (iter != PixelShaders.end())
-	{
-		const PSCacheEntry &entry = iter->second;
-		last_entry = &entry;
-
-		GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE,true);
-		return (entry.shaderDesc.pShaderBytecode != nullptr);
-	}
-
-	// Need to compile a new shader
-	ShaderCode code = GeneratePixelShaderCode(dstAlphaMode, API_D3D);
-
-	D3DBlob* pbytecode;
-	if (!D3D::CompilePixelShader(code.GetBuffer(), &pbytecode))
-	{
-		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);
-		return false;
-	}
-
-	// Insert the bytecode into the caches
-	g_ps_disk_cache.Append(uid, pbytecode->Data(), pbytecode->Size());
-
-	bool success = InsertByteCode(uid, pbytecode->Data(), pbytecode->Size());
-	pbytecode->Release();
-
-	if (g_ActiveConfig.bEnableShaderDebugging && success)
-	{
-		PixelShaders[uid].code = code.GetBuffer();
-	}
-
-	GFX_DEBUGGER_PAUSE_AT(NEXT_PIXEL_SHADER_CHANGE, true);
-	return success;
-}
-
-bool PixelShaderCache::InsertByteCode(const PixelShaderUid &uid, const void* bytecode, unsigned int bytecodelen)
-{
-	// Make an entry in the table
-	PSCacheEntry newentry;
-
-	// In D3D12, shader bytecode is needed at Pipeline State creation time, so make a copy (as LinearDiskCache frees original after load).
-	newentry.shaderDesc.BytecodeLength = bytecodelen;
-	newentry.shaderDesc.pShaderBytecode = new u8[bytecodelen];
-	memcpy(const_cast<void*>(newentry.shaderDesc.pShaderBytecode), bytecode, bytecodelen);
-
-	PixelShaders[uid] = newentry;
-	last_entry = &PixelShaders[uid];
-
-	if (!bytecode)
-	{
-		// INCSTAT(stats.numPixelShadersFailed);
-		return false;
-	}
-
-	INCSTAT(stats.numPixelShadersCreated);
-	SETSTAT(stats.numPixelShadersAlive, PixelShaders.size());
-	return true;
 }
 
 }  // DX12

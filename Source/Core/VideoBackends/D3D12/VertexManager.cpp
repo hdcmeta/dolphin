@@ -10,6 +10,7 @@
 #include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/Render.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
 #include "VideoBackends/D3D12/VertexManager.h"
 #include "VideoBackends/D3D12/VertexShaderCache.h"
 
@@ -178,24 +179,7 @@ void VertexManager::Draw(u32 stride)
 
 void VertexManager::vFlush(bool useDstAlpha)
 {
-	if (!PixelShaderCache::SetShader(
-		useDstAlpha ? DSTALPHA_DUAL_SOURCE_BLEND : DSTALPHA_NONE))
-	{
-		GFX_DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set pixel shader\n");});
-		return;
-	}
-
-	if (!VertexShaderCache::SetShader())
-	{
-		GFX_DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set vertex shader\n");});
-		return;
-	}
-
-	if (!GeometryShaderCache::SetShader(current_primitive_type))
-	{
-		GFX_DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR, true, { printf("Fail to set geometry shader\n"); });
-		return;
-	}
+	ShaderCache::LoadAndSetActiveShaders(useDstAlpha ? DSTALPHA_DUAL_SOURCE_BLEND : DSTALPHA_NONE, current_primitive_type);
 
 	if (g_ActiveConfig.backend_info.bSupportsBBox && BoundingBox::active)
 	{
