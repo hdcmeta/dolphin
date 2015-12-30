@@ -297,9 +297,11 @@ void ShaderCache::InsertByteCode(const ShaderGeneratorInterface& uid, SHADER_STA
 	// Note: Don't release the incoming bytecode, we need it to stick around, since in D3D12
 	// the raw bytecode itself is bound. It is released at Shutdown() time.
 
+	void* shader_bytecode_copy = new u8[bytecode_blob->Size()];
+	memcpy(shader_bytecode_copy, bytecode_blob->Data(), bytecode_blob->Size());
+
 	D3D12_SHADER_BYTECODE shader_bytecode;
-	shader_bytecode.pShaderBytecode = new u8[bytecode_blob->Size()];
-	memcpy(const_cast<void*>(shader_bytecode.pShaderBytecode), bytecode_blob->Data(), bytecode_blob->Size());
+	shader_bytecode.pShaderBytecode = shader_bytecode_copy;
 	shader_bytecode.BytecodeLength = bytecode_blob->Size();
 
 	switch (stage)
