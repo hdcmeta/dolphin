@@ -17,7 +17,7 @@
 namespace DX12
 {
 
-static const char YUYV_DECODER_PS[] =
+static const constexpr char s_yuyv_decoder_program_hlsl[] =
 "// dolphin-emu YUYV decoder pixel shader\n"
 
 "Texture2D Tex0 : register(t0);\n"
@@ -61,7 +61,6 @@ static const char YUYV_DECODER_PS[] =
 ;
 
 Television::Television()
-	: m_yuyvTexture(nullptr), m_yuyvTextureSRV(nullptr), m_pShader(nullptr)
 { }
 
 void Television::Init()
@@ -133,11 +132,11 @@ void Television::Shutdown()
 #endif
 }
 
-void Television::Submit(u32 xfbAddr, u32 stride, u32 width, u32 height)
+void Television::Submit(u32 xfb_address, u32 stride, u32 width, u32 height)
 {
-	m_curAddr = xfbAddr;
-	m_curWidth = width;
-	m_curHeight = height;
+	m_current_address = xfb_address;
+	m_current_width = width;
+	m_current_height = height;
 
 	// Load data from GameCube RAM to YUYV texture
 #ifdef USE_D3D11
