@@ -462,7 +462,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 		// copy to system memory
 		D3D12_BOX box12 = CD3DX12_BOX(0, 0, 0, 1, 1, 1);
-		read_tex12 = FramebufferManager::GetEFBDepthStagingBuffer12();
+		read_tex12 = FramebufferManager::GetEFBDepthStagingBuffer();
 
 		D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
 		dstLocation.pResource = read_tex12;
@@ -518,7 +518,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		D3D::command_list_mgr->CPUAccessNotify();
 
 		// we can directly copy to system memory here
-		read_tex12 = FramebufferManager::GetEFBColorStagingBuffer12();
+		read_tex12 = FramebufferManager::GetEFBColorStagingBuffer();
 
 		D3D12_BOX box12 = CD3DX12_BOX(RectToLock.left, RectToLock.top, 0, RectToLock.right, RectToLock.bottom, 1);
 
@@ -952,7 +952,7 @@ void Renderer::SwapImpl(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight, co
 
 			sourceRc.right -= Renderer::EFBToScaledX(fbStride - fbWidth);
 
-			BlitScreen(sourceRc, drawRc, xfbSource->tex, xfbSource->texWidth, xfbSource->texHeight, gamma);
+			BlitScreen(sourceRc, drawRc, xfbSource->m_tex, xfbSource->texWidth, xfbSource->texHeight, gamma);
 		}
 	}
 	else
