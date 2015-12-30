@@ -30,16 +30,10 @@
     <ClCompile Include="FramebufferManager.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="GeometryShaderCache.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="NativeVertexFormat.cpp">
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="PerfQuery.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="PixelShaderCache.cpp">
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="PSTextureEncoder.cpp">
@@ -55,9 +49,6 @@
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="VertexManager.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="VertexShaderCache.cpp">
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="XFBEncoder.cpp">
@@ -80,6 +71,9 @@
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="ShaderCache.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderConstantsManager.cpp">
       <Filter>Render</Filter>
     </ClCompile>
   </ItemGroup>
@@ -105,13 +99,7 @@
     <ClInclude Include="FramebufferManager.h">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="GeometryShaderCache.h">
-      <Filter>Render</Filter>
-    </ClInclude>
     <ClInclude Include="PerfQuery.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="PixelShaderCache.h">
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="PSTextureEncoder.h">
@@ -130,9 +118,6 @@
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="VertexManager.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="VertexShaderCache.h">
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="XFBEncoder.h">
@@ -159,6 +144,9 @@
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="ShaderCache.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderConstantsManager.h">
       <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>

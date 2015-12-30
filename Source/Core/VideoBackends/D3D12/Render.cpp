@@ -26,6 +26,7 @@
 #include "VideoBackends/D3D12/Render.h"
 #include "VideoBackends/D3D12/ShaderCache.h"
 #include "VideoBackends/D3D12/StaticShaderCache.h"
+#include "VideoBackends/D3D12/ShaderConstantsManager.h"
 #include "VideoBackends/D3D12/Television.h"
 #include "VideoBackends/D3D12/TextureCache.h"
 
@@ -1191,9 +1192,8 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		D3D::command_list_mgr->m_dirty_samplers = false;
 	}
 
-	VertexShaderCache::GetConstantBuffer12();
-	PixelShaderCache::GetConstantBuffer12();
-	GeometryShaderCache::GetConstantBuffer12();
+	// Uploads and binds required constant buffer data for all stages.
+	ShaderConstantsManager::LoadAndSetShaderConstants();
 
 	if (D3D::command_list_mgr->m_dirty_pso || pOldVertextFormat != reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat()))
 	{

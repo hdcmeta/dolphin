@@ -11,6 +11,8 @@
 namespace DX12
 {
 
+class D3DBlob;
+
 enum SHADER_STAGE
 {
 	SHADER_STAGE_GEOMETRY_SHADER = 0,

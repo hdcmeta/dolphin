@@ -10,11 +10,9 @@
 #include "Common/BitField.h"
 #include "Common/CommonTypes.h"
 #include "VideoBackends/D3D12/D3DBase.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
 #include "VideoBackends/D3D12/NativeVertexFormat.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/StaticShaderCache.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
+#include "VideoBackends/D3D12/ShaderCache.h"
 
 #include "VideoCommon/BPMemory.h"
 

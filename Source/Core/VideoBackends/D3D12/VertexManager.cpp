@@ -7,12 +7,9 @@
 #include "VideoBackends/D3D12/D3DCommandListManager.h"
 #include "VideoBackends/D3D12/D3DState.h"
 #include "VideoBackends/D3D12/FramebufferManager.h"
-#include "VideoBackends/D3D12/GeometryShaderCache.h"
-#include "VideoBackends/D3D12/PixelShaderCache.h"
 #include "VideoBackends/D3D12/Render.h"
 #include "VideoBackends/D3D12/ShaderCache.h"
 #include "VideoBackends/D3D12/VertexManager.h"
-#include "VideoBackends/D3D12/VertexShaderCache.h"
 
 #include "VideoCommon/BoundingBox.h"
 #include "VideoCommon/Debugger.h"

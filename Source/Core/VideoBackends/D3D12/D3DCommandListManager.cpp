@@ -9,6 +9,7 @@
 #include "VideoBackends/D3D12/D3DTexture.h"
 
 #include "VideoBackends/D3D12/Render.h"
+#include "VideoBackends/D3D12/ShaderConstantsManager.h"
 #include "VideoBackends/D3D12/VertexManager.h"
 
 #include <vector>
@@ -18,9 +19,6 @@ static const UINT s_initial_command_allocator_count = 2;
 
 namespace DX12
 {
-extern UINT current_vsc_buf12;
-extern UINT current_psc_buf12;
-
 extern StateCache gx_state_cache;
 
 D3DCommandListManager::D3DCommandListManager(
@@ -172,15 +170,7 @@ void D3DCommandListManager::ExecuteQueuedWork(bool wait_for_gpu_completion)
 
 void D3DCommandListManager::ExecuteQueuedWorkAndPresent(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags)
 {
-	if (current_vsc_buf12 > 5000 * 3840)
-	{
-		current_vsc_buf12 = 0;
-	}
 
-	if (current_psc_buf12 > 5000 * 768)
-	{
-		current_psc_buf12 = 0;
-	}
 
 #ifdef USE_D3D12_QUEUED_COMMAND_LISTS
 	CheckHR(m_queued_command_list->Close());
@@ -267,6 +257,8 @@ void D3DCommandListManager::PerformGpuRolloverChecks()
 		D3D::MoveToNextD3DTextureUploadHeap();
 	}
 
+	// Shader constant buffers are rolled-over independently of command allocator usage.
+	ShaderConstantsManager::CheckToResetIndexPositionInUploadHeaps();
 }
 
 void D3DCommandListManager::ResetCommandListWithIdleCommandAllocator()
