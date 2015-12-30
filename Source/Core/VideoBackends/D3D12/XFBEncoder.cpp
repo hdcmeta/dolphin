@@ -31,7 +31,7 @@ union XFBEncodeParams
 	u8 pad[32]; // Pad to the next multiple of 16
 };
 
-static const char XFB_ENCODE_VS[] =
+static constexpr const char s_xfb_encode_vertex_shader_hlsl[] =
 "// dolphin-emu XFB encoder vertex shader\n"
 
 "cbuffer cbParams : register(b0)\n"
@@ -63,7 +63,7 @@ static const char XFB_ENCODE_VS[] =
 "}\n"
 ;
 
-static const char XFB_ENCODE_PS[] =
+static constexpr const char s_xfb_encode_pixel_shader_hlsl[] =
 "// dolphin-emu XFB encoder pixel shader\n"
 
 "cbuffer cbParams : register(b0)\n"
@@ -122,21 +122,17 @@ static const char XFB_ENCODE_PS[] =
 "}\n"
 ;
 
-static const D3D11_INPUT_ELEMENT_DESC QUAD_LAYOUT_DESC[] = {
-	{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+static const D3D12_INPUT_ELEMENT_DESC s_quad_layout_desc[] = {
+	{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 };
 
 static const struct QuadVertex
 {
 	float posX;
 	float posY;
-} QUAD_VERTS[4] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } };
+} s_quad_verts[4] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } };
 
 XFBEncoder::XFBEncoder()
-	: m_out(nullptr), m_outRTV(nullptr), m_outStage(nullptr), m_encodeParams(nullptr),
-	m_quad(nullptr), m_vShader(nullptr), m_quadLayout(nullptr), m_pShader(nullptr),
-	m_xfbEncodeBlendState(nullptr), m_xfbEncodeDepthState(nullptr),
-	m_xfbEncodeRastState(nullptr), m_efbSampler(nullptr)
 { }
 
 void XFBEncoder::Init()
