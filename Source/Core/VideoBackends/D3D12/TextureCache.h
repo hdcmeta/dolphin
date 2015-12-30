@@ -10,7 +10,7 @@
 namespace DX12
 {
 
-class TextureCache : public TextureCacheBase
+class TextureCache final : public TextureCacheBase
 {
 public:
 	TextureCache();
@@ -19,51 +19,51 @@ public:
 private:
 	struct TCacheEntry : TCacheEntryBase
 	{
-		D3DTexture2D *const texture;
-		D3D12_CPU_DESCRIPTOR_HANDLE srvCpuHandle;
-		D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle;
-		D3D12_CPU_DESCRIPTOR_HANDLE srvGpuHandleCpuShadow;
+		D3DTexture2D* const m_texture = nullptr;
+		D3D12_CPU_DESCRIPTOR_HANDLE m_texture_srv_cpu_handle = {};
+		D3D12_GPU_DESCRIPTOR_HANDLE m_texture_srv_gpu_handle = {};
+		D3D12_CPU_DESCRIPTOR_HANDLE m_texture_srv_gpu_handle_cpu_shadow = {};
 
-		TCacheEntry(const TCacheEntryConfig& config, D3DTexture2D *_tex) : TCacheEntryBase(config), texture(_tex) {}
+		TCacheEntry(const TCacheEntryConfig& config, D3DTexture2D* tex) : TCacheEntryBase(config), m_texture(tex) {}
 		~TCacheEntry();
 
 		void CopyRectangleFromTexture(
 			const TCacheEntryBase* source,
-			const MathUtil::Rectangle<int> &srcrect,
-			const MathUtil::Rectangle<int> &dstrect) override;
+			const MathUtil::Rectangle<int> &src_rect,
+			const MathUtil::Rectangle<int> &dst_rect) override;
 
 		void Load(unsigned int width, unsigned int height,
 			unsigned int expanded_width, unsigned int levels) override;
 
-		void FromRenderTarget(u8* dst, PEControl::PixelFormat srcFormat, const EFBRectangle& srcRect,
-			bool scaleByHalf, unsigned int cbufid, const float *colmat) override;
+		void FromRenderTarget(u8* dst, PEControl::PixelFormat src_format, const EFBRectangle& src_rect,
+			bool scale_by_half, unsigned int cbuf_id, const float* colmat) override;
 
-		void Bind(unsigned int stage, unsigned int lastTexture) override;
+		void Bind(unsigned int stage, unsigned int last_texture) override;
 		bool Save(const std::string& filename, unsigned int level) override;
 	};
 
 	TCacheEntryBase* CreateTexture(const TCacheEntryConfig& config) override;
 
-	u64 EncodeToRamFromTexture(u32 address, void* source_texture, u32 SourceW, u32 SourceH, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyfmt, int bScaleByHalf, const EFBRectangle& source) {return 0;};
+	u64 EncodeToRamFromTexture(u32 address, void* source_texture, u32 source_width, u32 source_height, bool is_from_z_buffer, bool is_intensity_format, u32 copy_format, int scale_by_half, const EFBRectangle& source) {return 0;};
 
 	void ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* unconverted, void* palette, TlutFormat format) override;
 
 	void CopyEFB(u8* dst, u32 format, u32 native_width, u32 bytes_per_row, u32 num_blocks_y, u32 memory_stride,
-		PEControl::PixelFormat srcFormat, const EFBRectangle& srcRect,
-		bool isIntensity, bool scaleByHalf) override;
+		PEControl::PixelFormat src_format, const EFBRectangle& src_rect,
+		bool is_intensity, bool scale_by_half) override;
 
 	void CompileShaders() override { }
 	void DeleteShaders() override { }
 
-	ID3D12Resource* palette_buf12;
-	UINT palette_buf12index;
-	void* palette_buf12data;
-	D3D12_CPU_DESCRIPTOR_HANDLE palette_buf12cpu[1024];
-	D3D12_GPU_DESCRIPTOR_HANDLE palette_buf12gpu[1024];
-	ID3D12Resource* palette_uniform12;
-	UINT palette_uniform12offset;
-	void* palette_uniform12data;
-	D3D12_SHADER_BYTECODE palette_pixel_shader12[3];
+	ID3D12Resource* m_palette_buffer = nullptr;
+	unsigned int m_palette_buffer_index = 0;
+	void* m_palette_buffer_data = nullptr;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_palette_buffer_cpu_handles[1024] = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE m_palette_buffer_gpu_handles[1024] = {};
+	ID3D12Resource* m_palette_uniform_buffer = nullptr;
+	UINT m_palette_uniform_buffer_current_offset = 0;
+	void* m_palette_uniform_buffer_data = nullptr;
+	D3D12_SHADER_BYTECODE m_palette_pixel_shaders[3] = {};
 };
 
 }

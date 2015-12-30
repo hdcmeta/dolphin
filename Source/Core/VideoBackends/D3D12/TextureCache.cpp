@@ -21,41 +21,41 @@
 namespace DX12
 {
 
-static TextureEncoder* g_encoder = nullptr;
-const size_t MAX_COPY_BUFFERS = 32;
-ID3D12Resource* efbcopycbuf12[MAX_COPY_BUFFERS] = { 0 };
+static TextureEncoder* s_encoder = nullptr;
+static const unsigned int s_max_copy_buffers = 32;
+static ID3D12Resource* s_efb_copy_buffers[s_max_copy_buffers] = {};
 
-ID3D12Resource* pTCacheEntrySaveReadbackBuffer = nullptr;
-void* pTCacheEntrySaveReadbackBufferData = nullptr;
-UINT pTCacheEntrySaveReadbackBufferSize = 0;
+static ID3D12Resource* s_texture_cache_entry_readback_buffer = nullptr;
+static void* s_texture_cache_entry_readback_buffer_data = nullptr;
+static UINT s_texture_cache_entry_readback_buffer_size = 0;
 
 TextureCache::TCacheEntry::~TCacheEntry()
 {
-	texture->Release();
+	m_texture->Release();
 }
-
-bool firstTextureInGroup = true;
-D3D12_CPU_DESCRIPTOR_HANDLE groupBaseTextureCpuHandle;
-D3D12_GPU_DESCRIPTOR_HANDLE groupBaseTextureGpuHandle;
 
 void TextureCache::TCacheEntry::Bind(unsigned int stage, unsigned int lastTexture)
 {
+	static bool s_first_texture_in_group = true;
+	static D3D12_CPU_DESCRIPTOR_HANDLE s_group_base_texture_cpu_handle;
+	static D3D12_GPU_DESCRIPTOR_HANDLE s_group_base_texture_gpu_handle;
+
 	if (lastTexture == 0)
 	{
-		DX12::D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, this->srvGpuHandle);
+		DX12::D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, this->m_texture_srv_gpu_handle);
 		return;
 	}
 
-	if (firstTextureInGroup)
+	if (s_first_texture_in_group)
 	{
 		// On the first texture in the group, we need to allocate the space in the descriptor heap.
-		DX12::D3D::gpu_descriptor_heap_mgr->AllocateGroup(&groupBaseTextureCpuHandle, 8, &groupBaseTextureGpuHandle, nullptr, true);
+		DX12::D3D::gpu_descriptor_heap_mgr->AllocateGroup(&s_group_base_texture_cpu_handle, 8, &s_group_base_texture_gpu_handle, nullptr, true);
 
 		// Pave over space with null textures.
 		for (unsigned int i = 0; i < lastTexture; i++)
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE nullDestDescriptor;
-			nullDestDescriptor.ptr = groupBaseTextureCpuHandle.ptr + i * D3D::resource_descriptor_size;
+			nullDestDescriptor.ptr = s_group_base_texture_cpu_handle.ptr + i * D3D::resource_descriptor_size;
 
 			DX12::D3D::device12->CopyDescriptorsSimple(
 				1,
@@ -66,15 +66,15 @@ void TextureCache::TCacheEntry::Bind(unsigned int stage, unsigned int lastTextur
 		}
 
 		// Future binding calls will not be the first texture in the group.. until stage == count, below.
-		firstTextureInGroup = false;
+		s_first_texture_in_group = false;
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE textureDestDescriptor;
-	textureDestDescriptor.ptr = groupBaseTextureCpuHandle.ptr + stage * D3D::resource_descriptor_size;
+	textureDestDescriptor.ptr = s_group_base_texture_cpu_handle.ptr + stage * D3D::resource_descriptor_size;
 	DX12::D3D::device12->CopyDescriptorsSimple(
 		1,
 		textureDestDescriptor,
-		this->srvGpuHandleCpuShadow,
+		this->m_texture_srv_gpu_handle_cpu_shadow,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
 		);
 
@@ -82,80 +82,80 @@ void TextureCache::TCacheEntry::Bind(unsigned int stage, unsigned int lastTextur
 	if (stage == lastTexture)
 	{
 		// On the last texture, we need to actually bind the table.
-		DX12::D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, groupBaseTextureGpuHandle);
+		DX12::D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, s_group_base_texture_gpu_handle);
 
 		// Then mark that the next binding call will be the first texture in a group.
-		firstTextureInGroup = true;
+		s_first_texture_in_group = true;
 	}
 }
 
 bool TextureCache::TCacheEntry::Save(const std::string& filename, unsigned int level)
 {
-	// TODO: Somehow implement this (D3DX12 doesn't support dumping individual LODs)
+	// EXISTINGD3D11TODO: Somehow implement this (D3DX11 doesn't support dumping individual LODs)
 	static bool warn_once = true;
 	if (level && warn_once)
 	{
-		WARN_LOG(VIDEO, "Dumping individual LOD not supported by D3D11 backend!");
+		WARN_LOG(VIDEO, "Dumping individual LOD not supported by D3D12 backend!");
 		warn_once = false;
 		return false;
 	}
 
-	D3D12_RESOURCE_DESC textureDesc = texture->GetTex12()->GetDesc();
+	D3D12_RESOURCE_DESC textureDesc = m_texture->GetTex12()->GetDesc();
 
 	UINT requiredReadbackBufferSize = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT + ((textureDesc.Width * 4 + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)) * textureDesc.Height;
 
-	if (pTCacheEntrySaveReadbackBufferSize < requiredReadbackBufferSize)
+	if (s_texture_cache_entry_readback_buffer_size < requiredReadbackBufferSize)
 	{
-		pTCacheEntrySaveReadbackBufferSize = requiredReadbackBufferSize;
+		s_texture_cache_entry_readback_buffer_size = requiredReadbackBufferSize;
 
 		// We know the readback buffer won't be in use right now, since we wait on this thread 
 		// for the GPU to finish execution right after copying to it.
 
-		SAFE_RELEASE(pTCacheEntrySaveReadbackBuffer);
+		SAFE_RELEASE(s_texture_cache_entry_readback_buffer);
 	}
 
-	if (!pTCacheEntrySaveReadbackBuffer)
+	if (!s_texture_cache_entry_readback_buffer_size)
 	{
 		CheckHR(
 			D3D::device12->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(pTCacheEntrySaveReadbackBufferSize),
+				&CD3DX12_RESOURCE_DESC::Buffer(s_texture_cache_entry_readback_buffer_size),
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
-				IID_PPV_ARGS(&pTCacheEntrySaveReadbackBuffer)
+				IID_PPV_ARGS(&s_texture_cache_entry_readback_buffer)
 				)
 			);
 
-		CheckHR(pTCacheEntrySaveReadbackBuffer->Map(0, nullptr, &pTCacheEntrySaveReadbackBufferData));
+		CheckHR(s_texture_cache_entry_readback_buffer->Map(0, nullptr, &s_texture_cache_entry_readback_buffer_data));
 	}
 
 	bool saved_png = false;
 
-	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	
-	D3D12_TEXTURE_COPY_LOCATION dst = {};
-	dst.pResource = pTCacheEntrySaveReadbackBuffer;
-	dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	dst.PlacedFootprint.Offset = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-	dst.PlacedFootprint.Footprint.Depth = 1;
-	dst.PlacedFootprint.Footprint.Format = textureDesc.Format;
-	dst.PlacedFootprint.Footprint.Width = static_cast<UINT>(textureDesc.Width);
-	dst.PlacedFootprint.Footprint.Height = textureDesc.Height;
-	dst.PlacedFootprint.Footprint.RowPitch = ((textureDesc.Width * 4 + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1));
+	D3D12_TEXTURE_COPY_LOCATION dst_location = {};
+	dst_location.pResource = s_texture_cache_entry_readback_buffer;
+	dst_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	dst_location.PlacedFootprint.Offset = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+	dst_location.PlacedFootprint.Footprint.Depth = 1;
+	dst_location.PlacedFootprint.Footprint.Format = textureDesc.Format;
+	dst_location.PlacedFootprint.Footprint.Width = static_cast<UINT>(textureDesc.Width);
+	dst_location.PlacedFootprint.Footprint.Height = textureDesc.Height;
+	dst_location.PlacedFootprint.Footprint.RowPitch = ((textureDesc.Width * 4 + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1));
 	
-	D3D12_TEXTURE_COPY_LOCATION src = CD3DX12_TEXTURE_COPY_LOCATION(texture->GetTex12(), 0);
+	D3D12_TEXTURE_COPY_LOCATION src_location = CD3DX12_TEXTURE_COPY_LOCATION(m_texture->GetTex12(), 0);
 	
-	D3D::current_command_list->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+	D3D::current_command_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 
 	D3D::command_list_mgr->ExecuteQueuedWork(true);
 
 	saved_png = TextureToPng(
-		(u8*)pTCacheEntrySaveReadbackBufferData + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT,
-		dst.PlacedFootprint.Footprint.RowPitch,
+		(u8*)s_texture_cache_entry_readback_buffer_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT,
+		dst_location.PlacedFootprint.Footprint.RowPitch,
 		filename,
-		dst.PlacedFootprint.Footprint.Width,
-		dst.PlacedFootprint.Footprint.Height
+		dst_location.PlacedFootprint.Footprint.Width,
+		dst_location.PlacedFootprint.Footprint.Height
 		);
 
 	return saved_png;
@@ -163,48 +163,48 @@ bool TextureCache::TCacheEntry::Save(const std::string& filename, unsigned int l
 
 void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 	const TCacheEntryBase* source,
-	const MathUtil::Rectangle<int> &srcrect,
-	const MathUtil::Rectangle<int> &dstrect)
+	const MathUtil::Rectangle<int>& src_rect,
+	const MathUtil::Rectangle<int>& dst_rect)
 {
 	TCacheEntry* srcentry = (TCacheEntry*)source;
-	if (srcrect.GetWidth() == dstrect.GetWidth()
-		&& srcrect.GetHeight() == dstrect.GetHeight())
+	if (src_rect.GetWidth() == dst_rect.GetWidth()
+		&& src_rect.GetHeight() == dst_rect.GetHeight())
 	{
-		const D3D12_BOX *psrcbox = nullptr;
-		D3D12_BOX srcbox;
-		if (srcrect.left != 0 || srcrect.top != 0)
+		const D3D12_BOX* src_box_pointer = nullptr;
+		D3D12_BOX src_box;
+		if (src_rect.left != 0 || src_rect.top != 0)
 		{
-			srcbox.front = 0;
-			srcbox.back = 1;
-			srcbox.left = srcrect.left;
-			srcbox.top = srcrect.top;
-			srcbox.right = srcrect.right;
-			srcbox.bottom = srcrect.bottom;
-			psrcbox = &srcbox;
+			src_box.front = 0;
+			src_box.back = 1;
+			src_box.left = src_rect.left;
+			src_box.top = src_rect.top;
+			src_box.right = src_rect.right;
+			src_box.bottom = src_rect.bottom;
+			src_box_pointer = &src_box;
 		}
 
-		if ((u32)srcrect.GetHeight() > config.height ||
-			(u32)srcrect.GetWidth() > config.width)
+		if ((u32)src_rect.GetHeight() > config.height ||
+			(u32)src_rect.GetWidth() > config.width)
 		{
-			srcbox.front = 0;
-			srcbox.back = 1;
-			srcbox.left = srcrect.left;
-			srcbox.top = srcrect.top;
-			srcbox.right = srcbox.left + config.width;
-			srcbox.bottom = srcbox.top + config.height;
-			psrcbox = &srcbox;
+			src_box.front = 0;
+			src_box.back = 1;
+			src_box.left = src_rect.left;
+			src_box.top = src_rect.top;
+			src_box.right = src_box.left + config.width;
+			src_box.bottom = src_box.top + config.height;
+			src_box_pointer = &src_box;
 		}
 		
-		D3D12_TEXTURE_COPY_LOCATION dst = CD3DX12_TEXTURE_COPY_LOCATION(texture->GetTex12(), 0);
-		D3D12_TEXTURE_COPY_LOCATION src = CD3DX12_TEXTURE_COPY_LOCATION(srcentry->texture->GetTex12(), 0);
+		D3D12_TEXTURE_COPY_LOCATION dst_location = CD3DX12_TEXTURE_COPY_LOCATION(m_texture->GetTex12(), 0);
+		D3D12_TEXTURE_COPY_LOCATION src_location = CD3DX12_TEXTURE_COPY_LOCATION(srcentry->m_texture->GetTex12(), 0);
 
-		texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_DEST);
-		srcentry->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_DEST);
+		srcentry->m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-		D3D::current_command_list->CopyTextureRegion(&dst, dstrect.left, dstrect.top, 0, &src, psrcbox);
+		D3D::current_command_list->CopyTextureRegion(&dst_location, dst_rect.left, dst_rect.top, 0, &src_location, src_box_pointer);
 
-		texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		srcentry->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		srcentry->m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		return;
 	}
@@ -213,33 +213,33 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 		return;
 	}
 
-	const D3D12_VIEWPORT vp12 = {
-		float(dstrect.left),
-		float(dstrect.top),
-		float(dstrect.GetWidth()),
-		float(dstrect.GetHeight()),
+	const D3D12_VIEWPORT vp = {
+		float(dst_rect.left),
+		float(dst_rect.top),
+		float(dst_rect.GetWidth()),
+		float(dst_rect.GetHeight()),
 		D3D12_MIN_DEPTH,
 		D3D12_MAX_DEPTH
 	};
-	D3D::current_command_list->RSSetViewports(1, &vp12);
+	D3D::current_command_list->RSSetViewports(1, &vp);
 
-	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	D3D::current_command_list->OMSetRenderTargets(1, &texture->GetRTV12(), FALSE, nullptr);
+	m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	D3D::current_command_list->OMSetRenderTargets(1, &m_texture->GetRTV12(), FALSE, nullptr);
 
 	D3D::SetLinearCopySampler();
-	D3D12_RECT srcRC;
-	srcRC.left = srcrect.left;
-	srcRC.right = srcrect.right;
-	srcRC.top = srcrect.top;
-	srcRC.bottom = srcrect.bottom;
-	D3D::DrawShadedTexQuad(srcentry->texture, &srcRC,
+	D3D12_RECT src_rc;
+	src_rc.left = src_rect.left;
+	src_rc.right = src_rect.right;
+	src_rc.top = src_rect.top;
+	src_rc.bottom = src_rect.bottom;
+	D3D::DrawShadedTexQuad(srcentry->m_texture, &src_rc,
 		srcentry->config.width, srcentry->config.height,
 		StaticShaderCache::GetColorCopyPixelShader(false),
 		StaticShaderCache::GetSimpleVertexShader(),
 		StaticShaderCache::GetSimpleVertexShaderInputLayout(), D3D12_SHADER_BYTECODE(), 1.0, 0,
-		DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled());
+		DXGI_FORMAT_R8G8B8A8_UNORM, false, m_texture->GetMultisampled());
 
-	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	FramebufferManager::GetEFBDepthTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -252,7 +252,7 @@ void TextureCache::TCacheEntry::Load(unsigned int width, unsigned int height,
 	unsigned int expanded_width, unsigned int level)
 {
 	unsigned int src_pitch = 4 * expanded_width;
-	D3D::ReplaceRGBATexture2D(texture->GetTex12(), TextureCache::temp, width, height, src_pitch, level, texture->GetResourceUsageState());
+	D3D::ReplaceRGBATexture2D(m_texture->GetTex12(), TextureCache::temp, width, height, src_pitch, level, m_texture->GetResourceUsageState());
 }
 
 TextureCacheBase::TCacheEntryBase* TextureCache::CreateTexture(const TCacheEntryConfig& config)
@@ -265,32 +265,32 @@ TextureCacheBase::TCacheEntryBase* TextureCache::CreateTexture(const TCacheEntry
 
 		TCacheEntry* entry = new TCacheEntry(config, texture);
 
-		entry->srvCpuHandle = texture->GetSRV12CPU();
-		entry->srvGpuHandle = texture->GetSRV12GPU();
-		entry->srvGpuHandleCpuShadow = texture->GetSRV12GPUCPUShadow();
+		entry->m_texture_srv_cpu_handle = texture->GetSRV12CPU();
+		entry->m_texture_srv_gpu_handle = texture->GetSRV12GPU();
+		entry->m_texture_srv_gpu_handle_cpu_shadow = texture->GetSRV12GPUCPUShadow();
 
 		return entry;
 	}
 	else
 	{
-		ID3D12Resource* texture12 = nullptr;
+		ID3D12Resource* texture_resource = nullptr;
 
-		D3D12_RESOURCE_DESC texdesc12 = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+		D3D12_RESOURCE_DESC texture_resource_desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
 			config.width, config.height, 1, config.levels);
 
 		CheckHR(
 			D3D::device12->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC(texdesc12),
+			&CD3DX12_RESOURCE_DESC(texture_resource_desc),
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			nullptr,
-			IID_PPV_ARGS(&texture12)
+			IID_PPV_ARGS(&texture_resource)
 			)
 			);
 
 		D3DTexture2D* texture = new D3DTexture2D(
-			texture12,
+			texture_resource,
 			D3D11_BIND_SHADER_RESOURCE,
 			DXGI_FORMAT_UNKNOWN,
 			DXGI_FORMAT_UNKNOWN,
@@ -303,28 +303,28 @@ TextureCacheBase::TCacheEntryBase* TextureCache::CreateTexture(const TCacheEntry
 			config, texture
 			);
 
-		entry->srvCpuHandle = texture->GetSRV12CPU();
-		entry->srvGpuHandle = texture->GetSRV12GPU();
-		entry->srvGpuHandleCpuShadow = texture->GetSRV12GPUCPUShadow();
+		entry->m_texture_srv_cpu_handle = texture->GetSRV12CPU();
+		entry->m_texture_srv_gpu_handle = texture->GetSRV12GPU();
+		entry->m_texture_srv_gpu_handle_cpu_shadow = texture->GetSRV12GPUCPUShadow();
 
-		// TODO: better debug names
-		D3D::SetDebugObjectName12(entry->texture->GetTex12(), "a texture of the TextureCache");
+		// EXISTINGD3D11TODO: better debug names
+		D3D::SetDebugObjectName12(entry->m_texture->GetTex12(), "a texture of the TextureCache");
 
-		SAFE_RELEASE(texture12);
+		SAFE_RELEASE(texture_resource);
 
 		return entry;
 	}
 }
 
-void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat srcFormat, const EFBRectangle& srcRect,
-	bool scaleByHalf, unsigned int cbufid, const float *colmat)
+void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat src_format, const EFBRectangle& srcRect,
+	bool scale_by_half, unsigned int cbuf_id, const float* colmat)
 {
 	// stretch picture with increased internal resolution
-	const D3D12_VIEWPORT vp12 = { 0.f, 0.f, (float)config.width, (float)config.height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
-	D3D::current_command_list->RSSetViewports(1, &vp12);
+	const D3D12_VIEWPORT vp = { 0.f, 0.f, (float)config.width, (float)config.height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+	D3D::current_command_list->RSSetViewports(1, &vp);
 
 	// set transformation
-	if (nullptr == efbcopycbuf12[cbufid])
+	if (s_efb_copy_buffers[cbuf_id] == nullptr)
 	{
 		CheckHR(
 			D3D::device12->CreateCommittedResource(
@@ -333,16 +333,16 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 				&CD3DX12_RESOURCE_DESC::Buffer(28 * sizeof(float)),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS(&efbcopycbuf12[cbufid])
+				IID_PPV_ARGS(&s_efb_copy_buffers[cbuf_id])
 				)
 			);
 
-		void* pData = nullptr;
-		CheckHR(efbcopycbuf12[cbufid]->Map(0, nullptr, &pData));
-		memcpy(pData, colmat, 28 * sizeof(float));
+		void* data = nullptr;
+		CheckHR(s_efb_copy_buffers[cbuf_id]->Map(0, nullptr, &data));
+		memcpy(data, colmat, 28 * sizeof(float));
 	}
 
-	D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, efbcopycbuf12[cbufid]->GetGPUVirtualAddress());
+	D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, s_efb_copy_buffers[cbuf_id]->GetGPUVirtualAddress());
 	D3D::command_list_mgr->m_dirty_ps_cbv = true;
 
 	const TargetRectangle targetSource = g_renderer->ConvertEFBRectangle(srcRect);
@@ -350,7 +350,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 	const D3D12_RECT sourcerect = CD3DX12_RECT(targetSource.left, targetSource.top, targetSource.right, targetSource.bottom);
 
 	// Use linear filtering if (bScaleByHalf), use point filtering otherwise
-	if (scaleByHalf)
+	if (scale_by_half)
 		D3D::SetLinearCopySampler();
 	else
 		D3D::SetPointCopySampler();
@@ -358,23 +358,23 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 	// Make sure we don't draw with the texture set as both a source and target.
 	// (This can happen because we don't unbind textures when we free them.)
 
-	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	D3D::current_command_list->OMSetRenderTargets(1, &texture->GetRTV12(), FALSE, nullptr);
+	m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	D3D::current_command_list->OMSetRenderTargets(1, &m_texture->GetRTV12(), FALSE, nullptr);
 
 	// Create texture copy
 	D3D::DrawShadedTexQuad(
-		(srcFormat == PEControl::Z24) ? FramebufferManager::GetEFBDepthTexture() : FramebufferManager::GetEFBColorTexture(),
+		(src_format == PEControl::Z24) ? FramebufferManager::GetEFBDepthTexture() : FramebufferManager::GetEFBColorTexture(),
 		&sourcerect,
 		Renderer::GetTargetWidth(),
 		Renderer::GetTargetHeight(),
-		(srcFormat == PEControl::Z24) ? StaticShaderCache::GetDepthMatrixPixelShader(true) : StaticShaderCache::GetColorMatrixPixelShader(true),
+		(src_format == PEControl::Z24) ? StaticShaderCache::GetDepthMatrixPixelShader(true) : StaticShaderCache::GetColorMatrixPixelShader(true),
 		StaticShaderCache::GetSimpleVertexShader(),
 		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 		StaticShaderCache::GetCopyGeometryShader(),
-		1.0f, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, texture->GetMultisampled()
+		1.0f, 0, DXGI_FORMAT_R8G8B8A8_UNORM, false, m_texture->GetMultisampled()
 		);
 
-	texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	FramebufferManager::GetEFBDepthTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -387,10 +387,10 @@ void TextureCache::CopyEFB(u8* dst, u32 format, u32 native_width, u32 bytes_per_
 	PEControl::PixelFormat srcFormat, const EFBRectangle& srcRect,
 	bool isIntensity, bool scaleByHalf)
 {
-	g_encoder->Encode(dst, format, native_width, bytes_per_row, num_blocks_y, memory_stride, srcFormat, srcRect, isIntensity, scaleByHalf);
+	s_encoder->Encode(dst, format, native_width, bytes_per_row, num_blocks_y, memory_stride, srcFormat, srcRect, isIntensity, scaleByHalf);
 }
 
-const char palette_shader[] =
+static const constexpr char s_palette_shader_hlsl[] =
 R"HLSL(
 sampler samp0 : register(s0);
 Texture2DArray Tex0 : register(t0);
@@ -473,79 +473,80 @@ void main(
 void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* unconverted, void* palette, TlutFormat format)
 {
 	// stretch picture with increased internal resolution
-	const D3D12_VIEWPORT vp12 = { 0.f, 0.f, (float)unconverted->config.width, (float)unconverted->config.height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
-	D3D::current_command_list->RSSetViewports(1, &vp12);
+	const D3D12_VIEWPORT vp = { 0.f, 0.f, (float)unconverted->config.width, (float)unconverted->config.height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+	D3D::current_command_list->RSSetViewports(1, &vp);
 
 	// D3D12: Copy the palette into a free place in the palette_buf12 upload heap.
-	// Only 1024 palette buffers are supported in flight at once (arbitrary, this should be plenty).
-	palette_buf12index = (palette_buf12index + 1) %  1024;
-	memcpy((u8*)palette_buf12data + palette_buf12index * 512, palette, 512);
+	// Only 1024 palette buffers are supported in flight at once (arbitrary, this should be plenty). D3D12TODO: Is this actually plenty?
+	m_palette_buffer_index = (m_palette_buffer_index + 1) %  1024;
+	const unsigned int palette_buffer_slot_size = 512;
+	memcpy((u8*)m_palette_buffer_data + m_palette_buffer_index * palette_buffer_slot_size, palette, palette_buffer_slot_size);
 
 	// D3D12: Because the second SRV slot is occupied by this buffer, and an arbitrary texture occupies the first SRV slot,
 	// we need to allocate temporary space out of our descriptor heap, place the palette SRV in the second slot, then copy the
 	// existing texture's descriptor into the first slot.
 
 	// First, allocate the (temporary) space in the descriptor heap.
-	D3D12_CPU_DESCRIPTOR_HANDLE srvGroupCpu[2] = {};
-	D3D12_GPU_DESCRIPTOR_HANDLE srvGroupGpu[2] = {};
-	D3D::gpu_descriptor_heap_mgr->AllocateGroup(srvGroupCpu, 2, srvGroupGpu, nullptr, true);
+	D3D12_CPU_DESCRIPTOR_HANDLE srv_group_cpu_handle[2] = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE srv_group_gpu_handle[2] = {};
+	D3D::gpu_descriptor_heap_mgr->AllocateGroup(srv_group_cpu_handle, 2, srv_group_gpu_handle, nullptr, true);
 
-	srvGroupCpu[1].ptr = srvGroupCpu[0].ptr + D3D::resource_descriptor_size;
+	srv_group_cpu_handle[1].ptr = srv_group_cpu_handle[0].ptr + D3D::resource_descriptor_size;
 
 	// Now, create the palette SRV at the appropriate offset.
-	D3D12_SHADER_RESOURCE_VIEW_DESC palette_buf12srvDesc = {
+	D3D12_SHADER_RESOURCE_VIEW_DESC palette_buffer_srv_desc = {
 		DXGI_FORMAT_R16_UINT,                    // DXGI_FORMAT Format;
 		D3D12_SRV_DIMENSION_BUFFER,              // D3D12_SRV_DIMENSION ViewDimension;
 		D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING // UINT Shader4ComponentMapping;
 	};
-	palette_buf12srvDesc.Buffer.FirstElement = palette_buf12index * 256;
-	palette_buf12srvDesc.Buffer.NumElements = 256;
+	palette_buffer_srv_desc.Buffer.FirstElement = m_palette_buffer_index * 256;
+	palette_buffer_srv_desc.Buffer.NumElements = 256;
 
-	D3D::device12->CreateShaderResourceView(palette_buf12, &palette_buf12srvDesc, srvGroupCpu[1]);
+	D3D::device12->CreateShaderResourceView(m_palette_buffer, &palette_buffer_srv_desc, srv_group_cpu_handle[1]);
 
 	// Now, copy the existing texture's descriptor into the new temporary location.
-	static_cast<TCacheEntry*>(unconverted)->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	static_cast<TCacheEntry*>(unconverted)->m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	D3D::device12->CopyDescriptorsSimple(
 		1,
-		srvGroupCpu[0],
-		static_cast<TCacheEntry*>(unconverted)->texture->GetSRV12GPUCPUShadow(),
+		srv_group_cpu_handle[0],
+		static_cast<TCacheEntry*>(unconverted)->m_texture->GetSRV12GPUCPUShadow(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
 		);
 
 	// Finally, bind our temporary location.
-	D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, srvGroupGpu[0]);
+	D3D::current_command_list->SetGraphicsRootDescriptorTable(DESCRIPTOR_TABLE_PS_SRV, srv_group_gpu_handle[0]);
 
-	// TODO: Add support for C14X2 format.  (Different multiplier, more palette entries.)
+	// D3D11EXISTINGTODO: Add support for C14X2 format.  (Different multiplier, more palette entries.)
 
 	// D3D12: See TextureCache::TextureCache() - because there are only two possible buffer contents here,
 	// just pre-populate the data in two parts of the same upload heap.
 	if (unconverted->format == 0)
 	{
-		D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, palette_uniform12->GetGPUVirtualAddress());
+		D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, m_palette_uniform_buffer->GetGPUVirtualAddress());
 	}
 	else
 	{
-		D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, palette_uniform12->GetGPUVirtualAddress() + 256);
+		D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, m_palette_uniform_buffer->GetGPUVirtualAddress() + 256);
 	}
 
 	D3D::command_list_mgr->m_dirty_ps_cbv = true;
 
-	const D3D12_RECT sourcerect = CD3DX12_RECT(0, 0, unconverted->config.width, unconverted->config.height);
+	const D3D12_RECT source_rect = CD3DX12_RECT(0, 0, unconverted->config.width, unconverted->config.height);
 
 	D3D::SetPointCopySampler();
 
 	// Make sure we don't draw with the texture set as both a source and target.
 	// (This can happen because we don't unbind textures when we free them.)
 
-	static_cast<TCacheEntry*>(entry)->texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	D3D::current_command_list->OMSetRenderTargets(1, &static_cast<TCacheEntry*>(entry)->texture->GetRTV12(), FALSE, nullptr);
+	static_cast<TCacheEntry*>(entry)->m_texture->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	D3D::current_command_list->OMSetRenderTargets(1, &static_cast<TCacheEntry*>(entry)->m_texture->GetRTV12(), FALSE, nullptr);
 
 	// Create texture copy
 	D3D::DrawShadedTexQuad(
-		static_cast<TCacheEntry*>(unconverted)->texture,
-		&sourcerect, unconverted->config.width,
+		static_cast<TCacheEntry*>(unconverted)->m_texture,
+		&source_rect, unconverted->config.width,
 		unconverted->config.height,
-		palette_pixel_shader12[format],
+		m_palette_pixel_shaders[format],
 		StaticShaderCache::GetSimpleVertexShader(),
 		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 		StaticShaderCache::GetCopyGeometryShader(),
@@ -553,7 +554,7 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 		0,
 		DXGI_FORMAT_R8G8B8A8_UNORM,
 		true,
-		static_cast<TCacheEntry*>(entry)->texture->GetMultisampled()
+		static_cast<TCacheEntry*>(entry)->m_texture->GetMultisampled()
 		);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -568,7 +569,7 @@ D3D12_SHADER_BYTECODE GetConvertShader12(const char* Type)
 	std::string shader = "#define DECODE DecodePixel_";
 	shader.append(Type);
 	shader.append("\n");
-	shader.append(palette_shader);
+	shader.append(s_palette_shader_hlsl);
 
 	D3DBlob* pBlob = nullptr;
 	D3D::CompilePixelShader(shader, &pBlob);
@@ -578,22 +579,16 @@ D3D12_SHADER_BYTECODE GetConvertShader12(const char* Type)
 
 TextureCache::TextureCache()
 {
-	// FIXME: Is it safe here?
-	g_encoder = new PSTextureEncoder;
-	g_encoder->Init();
+	s_encoder = new PSTextureEncoder;
+	s_encoder->Init();
 
-	pTCacheEntrySaveReadbackBuffer = nullptr;
-	pTCacheEntrySaveReadbackBufferData = nullptr;
-	pTCacheEntrySaveReadbackBufferSize = 0;
+	s_texture_cache_entry_readback_buffer = nullptr;
+	s_texture_cache_entry_readback_buffer_data = nullptr;
+	s_texture_cache_entry_readback_buffer_size = 0;
 
-	palette_buf12 = nullptr;
-	palette_buf12index = 0;
-	palette_buf12data = nullptr;
-	ZeroMemory(palette_buf12cpu, sizeof(D3D12_CPU_DESCRIPTOR_HANDLE) * 1024);
-	ZeroMemory(palette_buf12gpu, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) * 1024);
-	palette_pixel_shader12[GX_TL_IA8] = GetConvertShader12("IA8");
-	palette_pixel_shader12[GX_TL_RGB565] = GetConvertShader12("RGB565");
-	palette_pixel_shader12[GX_TL_RGB5A3] = GetConvertShader12("RGB5A3");
+	m_palette_pixel_shaders[GX_TL_IA8] = GetConvertShader12("IA8");
+	m_palette_pixel_shaders[GX_TL_RGB565] = GetConvertShader12("RGB565");
+	m_palette_pixel_shaders[GX_TL_RGB5A3] = GetConvertShader12("RGB5A3");
 
 	CheckHR(
 		D3D::device12->CreateCommittedResource(
@@ -602,13 +597,13 @@ TextureCache::TextureCache()
 			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(u16) * 256 * 1024),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&palette_buf12)
+			IID_PPV_ARGS(&m_palette_buffer)
 			)
 		);
 
-	D3D::SetDebugObjectName12(palette_buf12, "texture decoder lut buffer");
+	D3D::SetDebugObjectName12(m_palette_buffer, "texture decoder lut buffer");
 
-	CheckHR(palette_buf12->Map(0, nullptr, &palette_buf12data));
+	CheckHR(m_palette_buffer->Map(0, nullptr, &m_palette_buffer_data));
 
 	// Right now, there are only two variants of palette_uniform data. So, we'll just create an upload heap to permanently store both of these.
 	CheckHR(
@@ -618,44 +613,44 @@ TextureCache::TextureCache()
 		&CD3DX12_RESOURCE_DESC::Buffer(((16 + 255) & ~255) * 2), // Constant Buffers have to be 256b aligned. "* 2" to create for two sets of data.
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&palette_uniform12)
+		IID_PPV_ARGS(&m_palette_uniform_buffer)
 		)
 		);
 
-	D3D::SetDebugObjectName12(palette_uniform12, "a constant buffer used in TextureCache::ConvertTexture");
+	D3D::SetDebugObjectName12(m_palette_uniform_buffer, "a constant buffer used in TextureCache::ConvertTexture");
 
-	void* palette_uniform12data = nullptr;
-	CheckHR(palette_uniform12->Map(0, nullptr, &palette_uniform12data));
+	CheckHR(m_palette_uniform_buffer->Map(0, nullptr, &m_palette_uniform_buffer_data));
 
 	float paramsFormatZero[4] = { 15.f };
 	float paramsFormatNonzero[4] = { 255.f };
 
-	memcpy(palette_uniform12data, paramsFormatZero, sizeof(paramsFormatZero));
-	memcpy((u8*)palette_uniform12data + 256, paramsFormatNonzero, sizeof(paramsFormatNonzero));
+	memcpy((u8*)m_palette_uniform_buffer_data, paramsFormatZero, sizeof(paramsFormatZero));
+	memcpy((u8*)m_palette_uniform_buffer_data + 256, paramsFormatNonzero, sizeof(paramsFormatNonzero));
 }
 
 TextureCache::~TextureCache()
 {
-	for (unsigned int k = 0; k < MAX_COPY_BUFFERS; ++k)
+	for (unsigned int k = 0; k < s_max_copy_buffers; ++k)
 	{
-		if (efbcopycbuf12[k])
+		if (s_efb_copy_buffers[k])
 		{
-			D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(efbcopycbuf12[k]);
-			efbcopycbuf12[k] = nullptr;
+			D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(s_efb_copy_buffers[k]);
+			s_efb_copy_buffers[k] = nullptr;
 		}
 	}
 
-	g_encoder->Shutdown();
-	delete g_encoder;
-	g_encoder = nullptr;
+	s_encoder->Shutdown();
+	delete s_encoder;
+	s_encoder = nullptr;
 
-	if (pTCacheEntrySaveReadbackBuffer)
+	if (s_texture_cache_entry_readback_buffer)
 	{
-		D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(pTCacheEntrySaveReadbackBuffer);
+		D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(s_texture_cache_entry_readback_buffer);
+		s_texture_cache_entry_readback_buffer = nullptr;
 	}
 
-	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(palette_buf12);
-	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(palette_uniform12);
+	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_palette_buffer);
+	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_palette_uniform_buffer);
 }
 
 }
