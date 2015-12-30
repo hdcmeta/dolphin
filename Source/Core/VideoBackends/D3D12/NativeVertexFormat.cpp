@@ -21,7 +21,7 @@ NativeVertexFormat* VertexManager::CreateNativeVertexFormat(const PortableVertex
 	return new D3DVertexFormat(vtx_decl);
 }
 
-static const DXGI_FORMAT d3d_format_lookup[5*4*2] =
+static const constexpr DXGI_FORMAT d3d_format_lookup[5*4*2] =
 {
 	// float formats
 	DXGI_FORMAT_R8_UNORM, DXGI_FORMAT_R8_SNORM, DXGI_FORMAT_R16_UNORM, DXGI_FORMAT_R16_SNORM, DXGI_FORMAT_R32_FLOAT,
@@ -46,12 +46,12 @@ DXGI_FORMAT VarToD3D(VarType t, int size, bool integer)
 	return retval;
 }
 
-D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
+D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &vtx_decl)
 	: m_num_elems(0), m_layout12({}), m_elems()
 {
-	this->vtx_decl = _vtx_decl;
+	this->vtx_decl = vtx_decl;
 	memset(m_elems, 0, sizeof(m_elems));
-	const AttributeFormat* format = &_vtx_decl.position;
+	const AttributeFormat* format = &vtx_decl.position;
 
 	if (format->enable)
 	{
@@ -61,7 +61,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 
 	for (int i = 0; i < 3; i++)
 	{
-		format = &_vtx_decl.normals[i];
+		format = &vtx_decl.normals[i];
 		if (format->enable)
 		{
 			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "NORMAL", i);
@@ -71,7 +71,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 
 	for (int i = 0; i < 2; i++)
 	{
-		format = &_vtx_decl.colors[i];
+		format = &vtx_decl.colors[i];
 		if (format->enable)
 		{
 			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "COLOR", i);
@@ -81,7 +81,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 
 	for (int i = 0; i < 8; i++)
 	{
-		format = &_vtx_decl.texcoords[i];
+		format = &vtx_decl.texcoords[i];
 		if (format->enable)
 		{
 			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "TEXCOORD", i);
@@ -89,7 +89,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 		}
 	}
 
-	format = &_vtx_decl.posmtx;
+	format = &vtx_decl.posmtx;
 	if (format->enable)
 	{
 		m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "BLENDINDICES", 0);
