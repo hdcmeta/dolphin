@@ -90,8 +90,7 @@ void D3DCommandListManager::SetInitialCommandListState()
 	{
 		// It is possible that we change command lists in the middle of the frame. In that case, restore
 		// the viewport/scissor to the current console GPU state.
-		g_renderer->SetScissorRect(((Renderer*)g_renderer)->GetScissorRect());
-		g_renderer->SetViewport();
+		g_renderer->RestoreAPIState();
 	}
 
 	command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);

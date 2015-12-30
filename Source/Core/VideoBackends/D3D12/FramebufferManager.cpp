@@ -11,7 +11,8 @@
 #include "VideoBackends/D3D12/XFBEncoder.h"
 #include "VideoCommon/VideoConfig.h"
 
-namespace DX12 {
+namespace DX12
+{
 
 static XFBEncoder s_xfbEncoder;
 
@@ -19,14 +20,23 @@ FramebufferManager::Efb FramebufferManager::m_efb;
 unsigned int FramebufferManager::m_target_width;
 unsigned int FramebufferManager::m_target_height;
 
-D3DTexture2D* &FramebufferManager::GetEFBColorTexture() { return m_efb.color_tex; }
-ID3D12Resource* &FramebufferManager::GetEFBColorStagingBuffer12() { return m_efb.color_staging_buf12; }
+D3DTexture2D*& FramebufferManager::GetEFBColorTexture() { return m_efb.color_tex; }
+ID3D12Resource*& FramebufferManager::GetEFBColorStagingBuffer() { return m_efb.color_staging_buf; }
 
-D3DTexture2D* &FramebufferManager::GetEFBDepthTexture() { return m_efb.depth_tex; }
-D3DTexture2D* &FramebufferManager::GetEFBDepthReadTexture() { return m_efb.depth_read_texture; }
-ID3D12Resource* &FramebufferManager::GetEFBDepthStagingBuffer12() { return m_efb.depth_staging_buf12; }
+D3DTexture2D*& FramebufferManager::GetEFBDepthTexture() { return m_efb.depth_tex; }
+D3DTexture2D*& FramebufferManager::GetEFBDepthReadTexture() { return m_efb.depth_read_texture; }
+ID3D12Resource*& FramebufferManager::GetEFBDepthStagingBuffer() { return m_efb.depth_staging_buf; }
 
-D3DTexture2D* &FramebufferManager::GetResolvedEFBColorTexture()
+D3DTexture2D*& FramebufferManager::GetEFBColorTempTexture() { return m_efb.color_temp_tex; }
+
+void FramebufferManager::SwapReinterpretTexture()
+{
+	D3DTexture2D* swaptex = GetEFBColorTempTexture();
+	m_efb.color_temp_tex = GetEFBColorTexture();
+	m_efb.color_tex = swaptex;
+}
+
+D3DTexture2D*& FramebufferManager::GetResolvedEFBColorTexture()
 {
 	if (g_ActiveConfig.iMultisamples > 1)
 	{
@@ -41,7 +51,9 @@ D3DTexture2D* &FramebufferManager::GetResolvedEFBColorTexture()
 		return m_efb.resolved_color_tex;
 	}
 	else
+	{
 		return m_efb.color_tex;
+	}
 }
 
 D3DTexture2D* &FramebufferManager::GetResolvedEFBDepthTexture()
@@ -104,7 +116,7 @@ FramebufferManager::FramebufferManager()
 
 	// AccessEFB - Sysmem buffer used to retrieve the pixel data from color_tex
 	texdesc12 = CD3DX12_RESOURCE_DESC::Buffer(64 * 1024);
-	hr = D3D::device12->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK), D3D12_HEAP_FLAG_NONE, &texdesc12, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_efb.color_staging_buf12));
+	hr = D3D::device12->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK), D3D12_HEAP_FLAG_NONE, &texdesc12, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_efb.color_staging_buf));
 	CHECK(hr == S_OK, "create EFB color staging buffer (hr=%#x)", hr);
 
 	// EFB depth buffer - primary depth buffer
@@ -128,10 +140,10 @@ FramebufferManager::FramebufferManager()
 	
 	// AccessEFB - Sysmem buffer used to retrieve the pixel data from depth_read_texture
 	texdesc12 = CD3DX12_RESOURCE_DESC::Buffer(64 * 1024);
-	hr = D3D::device12->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK), D3D12_HEAP_FLAG_NONE, &texdesc12, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_efb.depth_staging_buf12));
+	hr = D3D::device12->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK), D3D12_HEAP_FLAG_NONE, &texdesc12, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_efb.depth_staging_buf));
 	CHECK(hr == S_OK, "create EFB depth staging buffer (hr=%#x)", hr);
 
-	D3D::SetDebugObjectName12(m_efb.depth_staging_buf12, "EFB depth staging texture (used for Renderer::AccessEFB)");
+	D3D::SetDebugObjectName12(m_efb.depth_staging_buf, "EFB depth staging texture (used for Renderer::AccessEFB)");
 
 	if (g_ActiveConfig.iMultisamples > 1)
 	{
@@ -166,12 +178,12 @@ FramebufferManager::~FramebufferManager()
 	SAFE_RELEASE(m_efb.color_tex);
 	SAFE_RELEASE(m_efb.color_temp_tex);
 
-	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_efb.color_staging_buf12);
+	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_efb.color_staging_buf);
 
 	SAFE_RELEASE(m_efb.resolved_color_tex);
 	SAFE_RELEASE(m_efb.depth_tex);
 
-	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_efb.depth_staging_buf12);
+	D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_efb.depth_staging_buf);
 
 	SAFE_RELEASE(m_efb.depth_read_texture);
 	SAFE_RELEASE(m_efb.resolved_depth_tex);
@@ -190,7 +202,7 @@ XFBSourceBase* FramebufferManager::CreateXFBSource(unsigned int target_width, un
 		D3D11_USAGE_DEFAULT, DXGI_FORMAT_R8G8B8A8_UNORM, 1, layers), layers);
 }
 
-void FramebufferManager::GetTargetSize(unsigned int *width, unsigned int *height)
+void FramebufferManager::GetTargetSize(unsigned int* width, unsigned int* height)
 {
 	*width = m_target_width;
 	*height = m_target_height;
@@ -246,8 +258,8 @@ void XFBSource::CopyEFB(float gamma)
 	const D3D12_VIEWPORT vp12 = { 0.f, 0.f, (float)texWidth, (float)texHeight, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
 	D3D::current_command_list->RSSetViewports(1, &vp12);
 
-	tex->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	D3D::current_command_list->OMSetRenderTargets(1, &tex->GetRTV12(), FALSE, nullptr);
+	m_tex->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	D3D::current_command_list->OMSetRenderTargets(1, &m_tex->GetRTV12(), FALSE, nullptr);
 
 	D3D::SetLinearCopySampler();
 
@@ -264,7 +276,7 @@ void XFBSource::CopyEFB(float gamma)
 		0,
 		DXGI_FORMAT_R8G8B8A8_UNORM,
 		false,
-		tex->GetMultisampled()
+		m_tex->GetMultisampled()
 		);
 
 	FramebufferManager::GetEFBColorTexture()->TransitionToResourceState(D3D::current_command_list, D3D12_RESOURCE_STATE_RENDER_TARGET);

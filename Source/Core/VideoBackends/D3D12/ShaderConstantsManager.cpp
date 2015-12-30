@@ -189,7 +189,6 @@ void ShaderConstantsManager::CheckToResetIndexPositionInUploadHeaps()
 {
 	for (unsigned int i = 0; i < SHADER_STAGE_COUNT; i++)
 	{
-		shader_constant_buffer_current_slot_index[i] = 0;
 		if (shader_constant_buffer_current_slot_index[i] > shader_constant_buffer_slot_rollover_threshold[i])
 		{
 			shader_constant_buffer_current_slot_index[i] = 0;

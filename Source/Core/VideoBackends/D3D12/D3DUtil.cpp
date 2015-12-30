@@ -19,11 +19,9 @@
 namespace DX12
 {
 
-extern D3D12_BLEND_DESC clearblendstates12[4];
-extern D3D12_DEPTH_STENCIL_DESC cleardepthstates12[3];
-extern D3D12_BLEND_DESC resetblendstate12;
-extern D3D12_DEPTH_STENCIL_DESC resetdepthstate12;
-extern D3D12_RASTERIZER_DESC resetraststate12;
+extern D3D12_BLEND_DESC g_reset_blend_desc;
+extern D3D12_DEPTH_STENCIL_DESC g_reset_depth_desc;
+extern D3D12_RASTERIZER_DESC g_reset_rast_desc;
 
 namespace D3D
 {
@@ -700,10 +698,10 @@ void DrawShadedTexQuad(D3DTexture2D* texture,
 		{},                                               // D3D12_SHADER_BYTECODE HS;
 		gshader12,                                        // D3D12_SHADER_BYTECODE GS;
 		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
-		resetblendstate12,                                // D3D12_BLEND_DESC BlendState;
+		g_reset_blend_desc,                               // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
-		resetraststate12,                                 // D3D12_RASTERIZER_DESC RasterizerState
-		resetdepthstate12,                                // D3D12_DEPTH_STENCIL_DESC DepthStencilState
+		g_reset_rast_desc,                                // D3D12_RASTERIZER_DESC RasterizerState
+		g_reset_depth_desc,                               // D3D12_DEPTH_STENCIL_DESC DepthStencilState
 		layout12,                                         // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,           // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType
@@ -733,7 +731,7 @@ void DrawShadedTexQuad(D3DTexture2D* texture,
 
 	D3D::current_command_list->DrawInstanced(4, 1, stq_offset, 0);
 
-	g_renderer->SetScissorRect(((Renderer*)g_renderer)->GetScissorRect());
+	g_renderer->RestoreAPIState();
 }
 
 // Fills a certain area of the current render target with the specified color
@@ -783,7 +781,7 @@ void DrawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
 		*blend_desc,                                      // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
-		resetraststate12,                                 // D3D12_RASTERIZER_DESC RasterizerState
+		g_reset_rast_desc,                                // D3D12_RASTERIZER_DESC RasterizerState
 		*depth_stencil_desc,                              // D3D12_DEPTH_STENCIL_DESC DepthStencilState
 		StaticShaderCache::GetClearVertexShaderInputLayout(), // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
@@ -814,7 +812,7 @@ void DrawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 
 	D3D::current_command_list->DrawInstanced(4, 1, cq_offset, 0);
 
-	g_renderer->SetScissorRect(((Renderer*)g_renderer)->GetScissorRect());
+	g_renderer->RestoreAPIState();
 }
 
 void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc, bool rt_multisampled)
@@ -858,7 +856,7 @@ void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH
 		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
 		*blend_desc,                                      // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
-		resetraststate12,                                 // D3D12_RASTERIZER_DESC RasterizerState
+		g_reset_rast_desc,                                // D3D12_RASTERIZER_DESC RasterizerState
 		*depth_stencil_desc,                              // D3D12_DEPTH_STENCIL_DESC DepthStencilState
 		StaticShaderCache::GetClearVertexShaderInputLayout(), // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
@@ -889,7 +887,7 @@ void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH
 
 	D3D::current_command_list->DrawInstanced(4, 1, clearq_offset, 0);
 
-	g_renderer->SetScissorRect(((Renderer*)g_renderer)->GetScissorRect());
+	g_renderer->RestoreAPIState();
 }
 
 }  // namespace D3D

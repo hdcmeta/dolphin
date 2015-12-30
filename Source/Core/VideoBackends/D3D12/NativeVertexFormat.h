@@ -7,7 +7,8 @@
 
 namespace DX12
 {
-class D3DVertexFormat : public NativeVertexFormat
+
+class D3DVertexFormat final : public NativeVertexFormat
 {
 	D3D12_INPUT_ELEMENT_DESC m_elems[15];
 	UINT m_num_elems;
@@ -20,6 +21,9 @@ public:
 
 	void SetupVertexPointers();
 
-	D3D12_INPUT_LAYOUT_DESC GetActiveInputLayout12() { return m_layout12; }
+	D3D12_INPUT_LAYOUT_DESC GetActiveInputLayout12() const { return m_layout12; };
+
+private:
+	D3D12_INPUT_ELEMENT_DESC GetInputElementDescFromAttributeFormat(const AttributeFormat* format, const char* semantic_name, unsigned int semantic_index) const;
 };
 }
