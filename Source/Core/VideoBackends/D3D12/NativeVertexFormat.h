@@ -7,7 +7,8 @@
 
 namespace DX12
 {
-class D3DVertexFormat : public NativeVertexFormat
+
+class D3DVertexFormat final : public NativeVertexFormat
 {
 	D3D12_INPUT_ELEMENT_DESC m_elems[15];
 	UINT m_num_elems;

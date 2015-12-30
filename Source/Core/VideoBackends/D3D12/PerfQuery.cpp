@@ -6,10 +6,10 @@
 #include "VideoBackends/D3D12/PerfQuery.h"
 #include "VideoCommon/RenderBase.h"
 
-namespace DX12 {
+namespace DX12
+{
 
 PerfQuery::PerfQuery()
-	: m_query_read_pos()
 {
 	for (ActiveQuery& entry : m_query_buffer)
 	{
@@ -154,7 +154,7 @@ void PerfQuery::WeakFlush()
 
 bool PerfQuery::IsFlushed() const
 {
-	return 0 == m_query_count;
+	return m_query_count == 0;
 }
 
 } // namespace
