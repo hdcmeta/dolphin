@@ -71,6 +71,8 @@ struct RSSetViewportsArguments
 	FLOAT TopLeftY;
 	FLOAT Width;
 	FLOAT Height;
+	FLOAT MinDepth;
+	FLOAT MaxDepth;
 };
 
 struct RSSetScissorRectsArguments
@@ -138,7 +140,9 @@ struct CopyBufferRegionArguments
 struct CopyTextureRegionArguments
 {
 	D3D12_TEXTURE_COPY_LOCATION dst;
-	// UINT DstX, DstY, DstZ; Assuming always '0'. Checked at runtime with DEBUGCHECK.
+	UINT DstX;
+	UINT DstY;
+	UINT DstZ;
 	D3D12_TEXTURE_COPY_LOCATION src;
 	D3D12_BOX srcBox;
 };

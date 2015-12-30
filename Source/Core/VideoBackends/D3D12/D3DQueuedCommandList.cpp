@@ -75,9 +75,9 @@ DWORD WINAPI ID3D12QueuedCommandList::BackgroundThreadFunction(LPVOID param)
 
 					command_list->CopyTextureRegion(
 						&reinterpret_cast<D3DQueueItem*>(item)->CopyTextureRegion.dst,
-						0, // item->CopyTextureRegion.DstX, (always zero, checked at command enqueing time)
-						0, // item->CopyTextureRegion.DstY, (always zero, checked at command enqueing time)
-						0, // item->CopyTextureRegion.DstZ, (always zero, checked at command enqueing time)
+						reinterpret_cast<D3DQueueItem*>(item)->CopyTextureRegion.DstX,
+						reinterpret_cast<D3DQueueItem*>(item)->CopyTextureRegion.DstY,
+						reinterpret_cast<D3DQueueItem*>(item)->CopyTextureRegion.DstZ,
 						&reinterpret_cast<D3DQueueItem*>(item)->CopyTextureRegion.src,
 						empty_box ?
 							nullptr : src_box
@@ -151,8 +151,8 @@ DWORD WINAPI ID3D12QueuedCommandList::BackgroundThreadFunction(LPVOID param)
 						reinterpret_cast<D3DQueueItem*>(item)->RSSetViewports.TopLeftY,
 						reinterpret_cast<D3DQueueItem*>(item)->RSSetViewports.Width,
 						reinterpret_cast<D3DQueueItem*>(item)->RSSetViewports.Height,
-						D3D11_MIN_DEPTH,
-						D3D11_MAX_DEPTH
+						reinterpret_cast<D3DQueueItem*>(item)->RSSetViewports.MinDepth,
+						reinterpret_cast<D3DQueueItem*>(item)->RSSetViewports.MaxDepth
 					};
 
 					command_list->RSSetViewports(1, &viewport);
@@ -679,11 +679,14 @@ void STDMETHODCALLTYPE ID3D12QueuedCommandList::CopyTextureRegion(
 	_In_opt_  const D3D12_BOX* pSrcBox
 	)
 {
-	DEBUGCHECK(DstX == 0 && DstY == 0 && DstZ == 0, "Error: Invalid assumption in ID3D12QueuedCommandList.");
 
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->Type = D3DQueueItemType::CopyTextureRegion;
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.dst =* pDst;
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.src =* pSrc;
+
+	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.DstX = DstX;
+	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.DstY = DstY;
+	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.DstZ = DstZ;
 
 	if (pSrcBox)
 		reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->CopyTextureRegion.srcBox = *pSrcBox;
@@ -759,6 +762,8 @@ void STDMETHODCALLTYPE ID3D12QueuedCommandList::RSSetViewports(
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->RSSetViewports.Width = pViewports->Width;
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->RSSetViewports.TopLeftX = pViewports->TopLeftX;
 	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->RSSetViewports.TopLeftY = pViewports->TopLeftY;
+	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->RSSetViewports.MinDepth = pViewports->MinDepth;
+	reinterpret_cast<D3DQueueItem*>(m_queue_array_back)->RSSetViewports.MaxDepth = pViewports->MaxDepth;
 
 	m_queue_array_back += sizeof(RSSetViewportsArguments) + sizeof(D3DQueueItemType) * 2;
 }
