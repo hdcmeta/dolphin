@@ -55,10 +55,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 
 	if (format->enable)
 	{
-		m_elems[m_num_elems].SemanticName = "POSITION";
-		m_elems[m_num_elems].AlignedByteOffset = format->offset;
-		m_elems[m_num_elems].Format = VarToD3D(format->type, format->components, format->integer);
-		m_elems[m_num_elems].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "POSITION", 0);
 		++m_num_elems;
 	}
 
@@ -67,11 +64,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 		format = &_vtx_decl.normals[i];
 		if (format->enable)
 		{
-			m_elems[m_num_elems].SemanticName = "NORMAL";
-			m_elems[m_num_elems].SemanticIndex = i;
-			m_elems[m_num_elems].AlignedByteOffset = format->offset;
-			m_elems[m_num_elems].Format = VarToD3D(format->type, format->components, format->integer);
-			m_elems[m_num_elems].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "NORMAL", i);
 			++m_num_elems;
 		}
 	}
@@ -81,11 +74,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 		format = &_vtx_decl.colors[i];
 		if (format->enable)
 		{
-			m_elems[m_num_elems].SemanticName = "COLOR";
-			m_elems[m_num_elems].SemanticIndex = i;
-			m_elems[m_num_elems].AlignedByteOffset = format->offset;
-			m_elems[m_num_elems].Format = VarToD3D(format->type, format->components, format->integer);
-			m_elems[m_num_elems].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "COLOR", i);
 			++m_num_elems;
 		}
 	}
@@ -95,11 +84,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 		format = &_vtx_decl.texcoords[i];
 		if (format->enable)
 		{
-			m_elems[m_num_elems].SemanticName = "TEXCOORD";
-			m_elems[m_num_elems].SemanticIndex = i;
-			m_elems[m_num_elems].AlignedByteOffset = format->offset;
-			m_elems[m_num_elems].Format = VarToD3D(format->type, format->components, format->integer);
-			m_elems[m_num_elems].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+			m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "TEXCOORD", i);
 			++m_num_elems;
 		}
 	}
@@ -107,10 +92,7 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 	format = &_vtx_decl.posmtx;
 	if (format->enable)
 	{
-		m_elems[m_num_elems].SemanticName = "BLENDINDICES";
-		m_elems[m_num_elems].AlignedByteOffset = format->offset;
-		m_elems[m_num_elems].Format = VarToD3D(format->type, format->components, format->integer);
-		m_elems[m_num_elems].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		m_elems[m_num_elems] = GetInputElementDescFromAttributeFormat(format, "BLENDINDICES", 0);
 		++m_num_elems;
 	}
 
@@ -118,9 +100,24 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &_vtx_decl)
 	m_layout12.pInputElementDescs = m_elems;
 }
 
+D3D12_INPUT_ELEMENT_DESC D3DVertexFormat::GetInputElementDescFromAttributeFormat(const AttributeFormat* format, const char* semantic_name, unsigned int semantic_index) const
+{
+	D3D12_INPUT_ELEMENT_DESC desc = {};
+
+	desc.AlignedByteOffset = format->offset;
+	desc.Format = VarToD3D(format->type, format->components, format->integer);
+	desc.InputSlot = 0;
+	desc.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	desc.SemanticName = semantic_name;
+	desc.SemanticIndex = semantic_index;
+	
+	return desc;
+}
+
 void D3DVertexFormat::SetupVertexPointers()
 {
 	// No-op on DX12.
 }
+
 
 } // namespace DX12
