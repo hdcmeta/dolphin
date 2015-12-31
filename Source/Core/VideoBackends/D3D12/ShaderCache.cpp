@@ -174,6 +174,21 @@ void ShaderCache::LoadAndSetActiveShaders(DSTALPHA_MODE ps_dst_alpha_mode, u32 g
 		return;
 	}
 
+	if (gs_changed)
+	{
+		s_last_geometry_shader_uid = gs_uid;
+	}
+
+	if (ps_changed)
+	{
+		s_last_pixel_shader_uid = ps_uid;
+	}
+
+	if (vs_changed)
+	{
+		s_last_vertex_shader_uid = vs_uid;
+	}
+
 	// A Uid has changed, so the PSO will need to be reset at next ApplyState.
 	D3D::command_list_mgr->m_dirty_pso = true;
 
