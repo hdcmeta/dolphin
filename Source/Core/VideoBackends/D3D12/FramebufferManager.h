@@ -75,7 +75,7 @@ public:
 	static void ResolveDepthTexture();
 
 private:
-	XFBSourceBase* CreateXFBSource(unsigned int target_width, unsigned int target_height, unsigned int layers) override;
+	std::unique_ptr<XFBSourceBase> CreateXFBSource(unsigned int target_width, unsigned int target_height, unsigned int layers) override;
 	void GetTargetSize(unsigned int* width, unsigned int* height) override;
 
 	void CopyToRealXFB(u32 xfbAddr, u32 fbStride, u32 fbHeight, const EFBRectangle& sourceRc, float gamma) override;
@@ -100,6 +100,8 @@ private:
 
 	static unsigned int m_target_width;
 	static unsigned int m_target_height;
+
+	static D3D12_DEPTH_STENCIL_DESC m_depth_resolve_depth_stencil_desc;
 };
 
 }  // namespace DX12

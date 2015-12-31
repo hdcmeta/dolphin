@@ -76,12 +76,16 @@ public:
 		D3D::command_list_mgr->DestroyResourceAfterCurrentCommandListExecuted(m_buf12);
 	}
 
+	int GetSize() const { return m_max_size; }
+
+	int GetRoomLeftInBuffer() const { return m_max_size - m_offset; }
+
 	// returns vertex offset to the new data
 	int AppendData(void* data, int size, int vertex_size)
 	{
 		if (m_offset + size >= m_max_size)
 		{
-			// wrap buffer around and notify observers
+			// Wrap buffer around.
 			m_offset = 0;
 		}
 
@@ -91,6 +95,28 @@ public:
 
 		m_offset += size;
 		return (m_offset - size) / vertex_size;
+	}
+
+	int BeginAppendData(void** write_ptr, int size, int vertex_size)
+	{
+		_dbg_assert_(VIDEO, size < m_max_size);
+
+		int aligned_offset = ((m_offset + vertex_size - 1) / vertex_size) * vertex_size; // align offset to vertex_size bytes
+		if (aligned_offset + size > m_max_size)
+		{
+			// wrap buffer around and notify observers
+			m_offset = 0;
+			aligned_offset = 0;
+		}
+
+		*write_ptr = reinterpret_cast<byte*>(m_buf12_data) + aligned_offset;
+		m_offset = aligned_offset + size;
+		return aligned_offset / vertex_size;
+	}
+
+	void EndAppendData()
+	{
+		// No-op on DX12.
 	}
 
 	ID3D12Resource* GetBuffer12()
@@ -110,6 +136,7 @@ CD3DFont font;
 UtilVertexBuffer* util_vbuf_stq = nullptr;
 UtilVertexBuffer* util_vbuf_cq = nullptr;
 UtilVertexBuffer* util_vbuf_clearq = nullptr;
+UtilVertexBuffer* util_vbuf_efbpokequads = nullptr;
 
 static const unsigned int s_max_num_vertices = 8000 * 6;
 
@@ -564,6 +591,7 @@ void InitUtils()
 	util_vbuf_stq = new UtilVertexBuffer(0x10000);
 	util_vbuf_cq = new UtilVertexBuffer(0x10000);
 	util_vbuf_clearq = new UtilVertexBuffer(0x10000);
+	util_vbuf_efbpokequads = new UtilVertexBuffer(0x100000);
 
 	D3D12_SAMPLER_DESC point_sampler_desc = {
 		D3D12_FILTER_MIN_MAG_MIP_POINT,
@@ -612,6 +640,7 @@ void ShutdownUtils()
 	SAFE_DELETE(util_vbuf_stq);
 	SAFE_DELETE(util_vbuf_cq);
 	SAFE_DELETE(util_vbuf_clearq);
+	SAFE_DELETE(util_vbuf_efbpokequads);
 }
 
 void SetPointCopySampler()
@@ -638,7 +667,8 @@ void DrawShadedTexQuad(D3DTexture2D* texture,
 	u32 slice,
 	DXGI_FORMAT rt_format,
 	bool inherit_srv_binding,
-	bool rt_multisampled
+	bool rt_multisampled,
+	D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc_override
 	)
 {
 	float sw = 1.0f / (float)source_width;
@@ -701,7 +731,9 @@ void DrawShadedTexQuad(D3DTexture2D* texture,
 		g_reset_blend_desc,                               // D3D12_BLEND_DESC BlendState;
 		UINT_MAX,                                         // UINT SampleMask;
 		g_reset_rast_desc,                                // D3D12_RASTERIZER_DESC RasterizerState
-		g_reset_depth_desc,                               // D3D12_DEPTH_STENCIL_DESC DepthStencilState
+		depth_stencil_desc_override ?
+			*depth_stencil_desc_override :
+			g_reset_depth_desc,                           // D3D12_DEPTH_STENCIL_DESC DepthStencilState
 		layout12,                                         // D3D12_INPUT_LAYOUT_DESC InputLayout
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,           // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType
@@ -762,13 +794,13 @@ void DrawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D
 	D3D::current_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	D3D::command_list_mgr->m_current_topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 
-	D3D12_VERTEX_BUFFER_VIEW vbView = {
+	D3D12_VERTEX_BUFFER_VIEW vb_view = {
 		util_vbuf_cq->GetBuffer12()->GetGPUVirtualAddress(), // D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
 		0x10000,                                             // UINT SizeInBytes; This is the size of the entire buffer, not just the size of the vertex data for one draw call, since the offsetting is done in the draw call itself.
 		sizeof(ColVertex)                                    // UINT StrideInBytes;
 	};
 
-	D3D::current_command_list->IASetVertexBuffers(0, 1, &vbView);
+	D3D::current_command_list->IASetVertexBuffers(0, 1, &vb_view);
 	D3D::command_list_mgr->m_dirty_vertex_buffer = true;
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {
@@ -835,13 +867,13 @@ void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH
 	D3D::current_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	D3D::command_list_mgr->m_current_topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 
-	D3D12_VERTEX_BUFFER_VIEW vbView = {
+	D3D12_VERTEX_BUFFER_VIEW vb_view = {
 		util_vbuf_clearq->GetBuffer12()->GetGPUVirtualAddress(), // D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
 		0x10000,                                                 // UINT SizeInBytes; This is the size of the entire buffer, not just the size of the vertex data for one draw call, since the offsetting is done in the draw call itself.
 		sizeof(ClearVertex)                                      // UINT StrideInBytes;
 	};
 
-	D3D::current_command_list->IASetVertexBuffers(0, 1, &vbView);
+	D3D::current_command_list->IASetVertexBuffers(0, 1, &vb_view);
 	D3D::command_list_mgr->m_dirty_vertex_buffer = true;
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {
@@ -888,6 +920,141 @@ void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH
 	D3D::current_command_list->DrawInstanced(4, 1, clearq_offset, 0);
 
 	g_renderer->RestoreAPIState();
+}
+
+static void InitColVertex(ColVertex* vert, float x, float y, float z, u32 col)
+{
+	vert->x = x;
+	vert->y = y;
+	vert->z = z;
+	vert->col = col;
+}
+
+void DrawEFBPokeQuads(EFBAccessType type,
+	const EfbPokeData* points,
+	size_t num_points,
+	D3D12_BLEND_DESC* blend_desc,
+	D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc,
+	D3D12_VIEWPORT* viewport,
+	D3D12_CPU_DESCRIPTOR_HANDLE* render_target,
+	D3D12_CPU_DESCRIPTOR_HANDLE* depth_buffer, 
+	bool rt_multisampled
+	)
+{
+	// The viewport and RT/DB are passed in so we can reconstruct the state if we need to execute in the middle of building the vertex buffer.
+
+	D3D::command_list_mgr->m_current_topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+
+	D3D12_VERTEX_BUFFER_VIEW vb_view = {
+		util_vbuf_efbpokequads->GetBuffer12()->GetGPUVirtualAddress(), // D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
+		0x100000,                                                      // UINT SizeInBytes; This is the size of the entire buffer, not just the size of the vertex data for one draw call, since the offsetting is done in the draw call itself.
+		sizeof(ColVertex)                                              // UINT StrideInBytes;
+	};
+
+	D3D::command_list_mgr->m_dirty_vertex_buffer = true;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {
+		default_root_signature,                           // ID3D12RootSignature *pRootSignature;
+		StaticShaderCache::GetClearVertexShader(),        // D3D12_SHADER_BYTECODE VS;
+		StaticShaderCache::GetClearPixelShader(),         // D3D12_SHADER_BYTECODE PS;
+		{},                                               // D3D12_SHADER_BYTECODE DS;
+		{},                                               // D3D12_SHADER_BYTECODE HS;
+		g_ActiveConfig.iStereoMode > 0 ?
+		StaticShaderCache::GetClearGeometryShader() :
+		D3D12_SHADER_BYTECODE(),                          // D3D12_SHADER_BYTECODE GS;
+		{},                                               // D3D12_STREAM_OUTPUT_DESC StreamOutput
+		*blend_desc,                                      // D3D12_BLEND_DESC BlendState;
+		UINT_MAX,                                         // UINT SampleMask;
+		g_reset_rast_desc,                                // D3D12_RASTERIZER_DESC RasterizerState
+		*depth_stencil_desc,                              // D3D12_DEPTH_STENCIL_DESC DepthStencilState
+		StaticShaderCache::GetClearVertexShaderInputLayout(), // D3D12_INPUT_LAYOUT_DESC InputLayout
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF,        // D3D12_INDEX_BUFFER_PROPERTIES IndexBufferProperties
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,           // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType
+		1,                                                // UINT NumRenderTargets
+		{ DXGI_FORMAT_R8G8B8A8_UNORM },                   // DXGI_FORMAT RTVFormats[8]
+		DXGI_FORMAT_D24_UNORM_S8_UINT,                    // DXGI_FORMAT DSVFormat
+		{ 1 /* UINT Count */, 0 /* UINT Quality */ }      // DXGI_SAMPLE_DESC SampleDesc
+	};
+
+	if (rt_multisampled)
+	{
+		pso_desc.SampleDesc.Count = g_ActiveConfig.iMultisamples;
+	}
+
+	ID3D12PipelineState* pso = nullptr;
+	CheckHR(DX12::gx_state_cache.GetPipelineStateObjectFromCache(&pso_desc, &pso));
+
+	D3D::command_list_mgr->m_dirty_pso = true;
+
+	// If drawing a large number of points at once, this will have to be split into multiple passes.
+	const size_t COL_QUAD_SIZE = sizeof(ColVertex) * 6;
+	size_t points_per_draw = util_vbuf_efbpokequads->GetSize() / COL_QUAD_SIZE;
+	
+	// Makes sure we aren't about to run out of room in our buffer. If so, wait for GPU to finish current work,
+	// then the BeginAppendData function below will automatically roll over to beginning of buffer.
+	if (util_vbuf_efbpokequads->GetRoomLeftInBuffer() < points_per_draw * COL_QUAD_SIZE)
+	{
+		D3D::command_list_mgr->ExecuteQueuedWork(true);
+	}
+	
+	size_t current_point_index = 0;
+
+	while (current_point_index < num_points)
+	{
+		// Corresponding dirty flags set outside loop.
+		D3D::current_command_list->OMSetRenderTargets(1, render_target, FALSE, depth_buffer);
+		D3D::current_command_list->RSSetViewports(1, viewport);
+		D3D::current_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		D3D::current_command_list->IASetVertexBuffers(0, 1, &vb_view);
+		D3D::current_command_list->SetPipelineState(pso);
+
+		// Disable scissor testing.
+		D3D::current_command_list->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, 131072, 131072));
+
+		size_t points_to_draw = std::min(num_points - current_point_index, points_per_draw);
+		size_t required_bytes = COL_QUAD_SIZE * points_to_draw;
+
+		// map and reserve enough buffer space for this draw
+		void* buffer_ptr;
+		int base_vertex_index = util_vbuf_efbpokequads->BeginAppendData(&buffer_ptr, (int)required_bytes, sizeof(ColVertex));
+
+		// generate quads for each efb point
+		ColVertex* base_vertex_ptr = reinterpret_cast<ColVertex*>(buffer_ptr);
+		for (size_t i = 0; i < points_to_draw; i++)
+		{
+			// generate quad from the single point (clip-space coordinates)
+			const EfbPokeData* point = &points[current_point_index];
+			float x1 = float(point->x) * 2.0f / EFB_WIDTH - 1.0f;
+			float y1 = -float(point->y) * 2.0f / EFB_HEIGHT + 1.0f;
+			float x2 = float(point->x + 1) * 2.0f / EFB_WIDTH - 1.0f;
+			float y2 = -float(point->y + 1) * 2.0f / EFB_HEIGHT + 1.0f;
+			float z = (type == POKE_Z) ? (1.0f - float(point->data & 0xFFFFFF) / 16777216.0f) : 0.0f;
+			u32 col = (type == POKE_Z) ? 0 : ((point->data & 0xFF00FF00) | ((point->data >> 16) & 0xFF) | ((point->data << 16) & 0xFF0000));
+			current_point_index++;
+
+			// quad -> triangles
+			ColVertex* vertex = &base_vertex_ptr[i * 6];
+			InitColVertex(&vertex[0], x1, y1, z, col);
+			InitColVertex(&vertex[1], x2, y1, z, col);
+			InitColVertex(&vertex[2], x1, y2, z, col);
+			InitColVertex(&vertex[3], x1, y2, z, col);
+			InitColVertex(&vertex[4], x2, y1, z, col);
+			InitColVertex(&vertex[5], x2, y2, z, col);
+		}
+
+		// Issue the draw
+		D3D::current_command_list->DrawInstanced(6 * (UINT)points_to_draw, 1, base_vertex_index, 0);
+
+		if (current_point_index < num_points)
+		{
+			// If we're about to go through the loop again, that means we ran out of room in our efb buffer. Let's 
+			// tell the GPU to execute the currently-queued work, and wait on the CPU until it finishes (so we can
+			// reuse the buffer). This shouldn't happen too often.
+
+			D3D::command_list_mgr->ExecuteQueuedWork(true);
+		}
+	}
+
 }
 
 }  // namespace D3D

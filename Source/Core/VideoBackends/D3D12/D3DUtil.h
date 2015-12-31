@@ -10,6 +10,8 @@
 #include "Common/MathUtil.h"
 #include "VideoBackends/D3D12/D3DState.h"
 
+#include "VideoCommon/RenderBase.h"
+
 namespace DX12
 {
 
@@ -18,7 +20,7 @@ extern StateCache gx_state_cache;
 namespace D3D
 {
 
-extern inline void ResourceBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after, UINT subresource);
+extern inline void ResourceBarrier(ID3D12GraphicsCommandList* command_list, ID3D12Resource* resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after, UINT subresource);
 
 // Font creation flags
 static const unsigned int s_d3dfont_bold = 0x0001;
@@ -72,22 +74,33 @@ void SetPointCopySampler();
 void SetLinearCopySampler();
 
 void DrawShadedTexQuad(D3DTexture2D* texture,
-					const D3D12_RECT* source,
-					int source_width,
-					int source_height,
-					D3D12_SHADER_BYTECODE pshader12 = {},
-					D3D12_SHADER_BYTECODE vshader12 = {},
-					D3D12_INPUT_LAYOUT_DESC layout12 = {},
-					D3D12_SHADER_BYTECODE gshader12 = {},
-					float gamma = 1.0f,
-					u32 slice = 0,
-					DXGI_FORMAT rt_format = DXGI_FORMAT_R8G8B8A8_UNORM,
-					bool inherit_srv_binding = false,
-					bool rt_multisampled = false
-					);
+	const D3D12_RECT* source,
+	int source_width,
+	int source_height,
+	D3D12_SHADER_BYTECODE pshader12 = {},
+	D3D12_SHADER_BYTECODE vshader12 = {},
+	D3D12_INPUT_LAYOUT_DESC layout12 = {},
+	D3D12_SHADER_BYTECODE gshader12 = {},
+	float gamma = 1.0f,
+	u32 slice = 0,
+	DXGI_FORMAT rt_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+	bool inherit_srv_binding = false,
+	bool rt_multisampled = false,
+	D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc_override = nullptr
+	);
 
 void DrawClearQuad(u32 Color, float z, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc, bool rt_multisampled);
 void DrawColorQuad(u32 Color, float z, float x1, float y1, float x2, float y2, D3D12_BLEND_DESC* blend_desc, D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc, bool rt_multisampled);
+
+void DrawEFBPokeQuads(EFBAccessType type,
+	const EfbPokeData* points,
+	size_t num_points,
+	D3D12_BLEND_DESC* blend_desc,
+	D3D12_DEPTH_STENCIL_DESC* depth_stencil_desc,
+	D3D12_VIEWPORT* viewport,
+	D3D12_CPU_DESCRIPTOR_HANDLE* render_target,
+	D3D12_CPU_DESCRIPTOR_HANDLE* depth_buffer,
+	bool rt_multisampled);
 }
 
 }

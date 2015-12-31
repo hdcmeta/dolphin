@@ -67,11 +67,6 @@ std::string VideoBackend::GetDisplayName() const
 	return "Direct3D 12";
 }
 
-std::string VideoBackend::GetConfigName() const
-{
-	return "gfx_dx12";
-}
-
 void InitBackendInfo()
 {
 	HRESULT hr = DX12::D3D::LoadDXGI();
@@ -150,7 +145,7 @@ void InitBackendInfo()
 void VideoBackend::ShowConfig(void *hParent)
 {
 	InitBackendInfo();
-	Host_ShowVideoConfig(hParent, GetDisplayName(), GetConfigName());
+	Host_ShowVideoConfig(hParent, GetDisplayName(), "gfx_dx12");
 }
 
 bool VideoBackend::Initialize(void *window_handle)
@@ -163,7 +158,7 @@ bool VideoBackend::Initialize(void *window_handle)
 
 	frameCount = 0;
 
-	g_Config.Load(File::GetUserPath(D_CONFIG_IDX) + GetConfigName() + ".ini");
+	g_Config.Load(File::GetUserPath(D_CONFIG_IDX) + "gfx_dx12.ini");
 	g_Config.GameIniLoad();
 	g_Config.UpdateProjectionHack();
 	g_Config.VerifyValidity();
@@ -179,10 +174,10 @@ bool VideoBackend::Initialize(void *window_handle)
 void VideoBackend::Video_Prepare()
 {
 	// internal interfaces
-	g_renderer = new Renderer(m_window_handle);
-	g_texture_cache = new TextureCache;
-	g_vertex_manager = new VertexManager;
-	g_perf_query = new PerfQuery;
+	g_renderer = std::make_unique<Renderer>(m_window_handle);
+	g_texture_cache = std::make_unique<TextureCache>();
+	g_vertex_manager = std::make_unique<VertexManager>();
+	g_perf_query = std::make_unique<PerfQuery>();
 	ShaderCache::Init();
 	ShaderConstantsManager::Init();
 	StaticShaderCache::Init();
@@ -232,14 +227,10 @@ void VideoBackend::Shutdown()
 		StaticShaderCache::Shutdown();
 		BBox::Shutdown();
 
-		delete g_perf_query;
-		delete g_vertex_manager;
-		delete g_texture_cache;
-		delete g_renderer;
-		g_renderer = nullptr;
-		g_texture_cache = nullptr;
-		g_vertex_manager = nullptr;
-		g_perf_query = nullptr;
+		g_perf_query.reset();
+		g_vertex_manager.reset();
+		g_texture_cache.reset();
+		g_renderer.reset();
 	}
 }
 

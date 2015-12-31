@@ -139,6 +139,18 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 
 	D3D::command_list_mgr->CPUAccessNotify();
 
+	// Resolve MSAA targets before copying.
+	D3DTexture2D* efb_source = (src_format == PEControl::Z24) ?
+		FramebufferManager::GetResolvedEFBDepthTexture() :
+		// EXISTINGD3D11TODO: Instead of resolving EFB, it would be better to pick out a
+		// single sample from each pixel. The game may break if it isn't
+		// expecting the blurred edges around multisampled shapes.
+		FramebufferManager::GetResolvedEFBColorTexture();
+
+	// GetResolvedEFBDepthTexture will set the render targets, when MSAA is enabled 
+	// (since it needs to do a manual depth resolve). So make sure to set the RTs
+	// afterwards.
+
 	const u32 words_per_row = bytes_per_row / sizeof(u32);
 
 	D3D12_VIEWPORT vp = { 0.f, 0.f, FLOAT(words_per_row), FLOAT(num_blocks_y), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
@@ -147,17 +159,6 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 	constexpr EFBRectangle full_src_rect(0, 0, EFB_WIDTH, EFB_HEIGHT);
 
 	TargetRectangle target_rect = g_renderer->ConvertEFBRectangle(full_src_rect);
-
-	D3DTexture2D* efb_source = (src_format == PEControl::Z24) ?
-		FramebufferManager::GetResolvedEFBDepthTexture() :
-		// FIXME: Instead of resolving EFB, it would be better to pick out a
-		// single sample from each pixel. The game may break if it isn't
-		// expecting the blurred edges around multisampled shapes.
-		FramebufferManager::GetResolvedEFBColorTexture();
-
-	// GetResolvedEFBDepthTexture will set the render targets, when MSAA is enabled 
-	// (since it needs to do a manual depth resolve). So make sure to set the RTs
-	// afterwards.
 
 	D3D::ResourceBarrier(D3D::current_command_list, m_out, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
 	D3D::current_command_list->OMSetRenderTargets(1, &m_out_rtv_cpu, FALSE, nullptr);

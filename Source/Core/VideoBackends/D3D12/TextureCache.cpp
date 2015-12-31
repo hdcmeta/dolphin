@@ -319,6 +319,21 @@ TextureCacheBase::TCacheEntryBase* TextureCache::CreateTexture(const TCacheEntry
 void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat src_format, const EFBRectangle& srcRect,
 	bool scale_by_half, unsigned int cbuf_id, const float* colmat)
 {
+	// When copying at half size, in multisampled mode, resolve the color/depth buffer first.
+	// This is because multisampled texture reads go through Load, not Sample, and the linear
+	// filter is ignored.
+	bool multisampled = (g_ActiveConfig.iMultisamples > 1);
+	D3DTexture2D* efb_tex = (src_format == PEControl::Z24) ?
+		FramebufferManager::GetEFBDepthTexture() :
+		FramebufferManager::GetEFBColorTexture();
+	if (multisampled && scale_by_half)
+	{
+		multisampled = false;
+		efb_tex = (src_format == PEControl::Z24) ?
+			FramebufferManager::GetResolvedEFBDepthTexture() :
+			FramebufferManager::GetResolvedEFBColorTexture();
+	}
+
 	// stretch picture with increased internal resolution
 	const D3D12_VIEWPORT vp = { 0.f, 0.f, (float)config.width, (float)config.height, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
 	D3D::current_command_list->RSSetViewports(1, &vp);
@@ -363,11 +378,11 @@ void TextureCache::TCacheEntry::FromRenderTarget(u8* dst, PEControl::PixelFormat
 
 	// Create texture copy
 	D3D::DrawShadedTexQuad(
-		(src_format == PEControl::Z24) ? FramebufferManager::GetEFBDepthTexture() : FramebufferManager::GetEFBColorTexture(),
+		efb_tex,
 		&sourcerect,
 		Renderer::GetTargetWidth(),
 		Renderer::GetTargetHeight(),
-		(src_format == PEControl::Z24) ? StaticShaderCache::GetDepthMatrixPixelShader(true) : StaticShaderCache::GetColorMatrixPixelShader(true),
+		(src_format == PEControl::Z24) ? StaticShaderCache::GetDepthMatrixPixelShader(multisampled) : StaticShaderCache::GetColorMatrixPixelShader(multisampled),
 		StaticShaderCache::GetSimpleVertexShader(),
 		StaticShaderCache::GetSimpleVertexShaderInputLayout(),
 		StaticShaderCache::GetCopyGeometryShader(),
@@ -520,7 +535,7 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 
 	// D3D12: See TextureCache::TextureCache() - because there are only two possible buffer contents here,
 	// just pre-populate the data in two parts of the same upload heap.
-	if (unconverted->format == 0)
+	if ((unconverted->format & 0xf) == GX_TF_I4)
 	{
 		D3D::current_command_list->SetGraphicsRootConstantBufferView(DESCRIPTOR_TABLE_PS_CBVONE, m_palette_uniform_buffer->GetGPUVirtualAddress());
 	}

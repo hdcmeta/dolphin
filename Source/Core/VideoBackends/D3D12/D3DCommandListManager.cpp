@@ -96,7 +96,7 @@ void D3DCommandListManager::SetInitialCommandListState()
 	command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	if (g_vertex_manager)
-		reinterpret_cast<VertexManager*>(g_vertex_manager)->SetIndexBuffer();
+		reinterpret_cast<VertexManager*>(g_vertex_manager.get())->SetIndexBuffer();
 
 	m_dirty_pso = true;
 	m_dirty_vertex_buffer = true;
