@@ -289,7 +289,7 @@ D3D12_SHADER_BYTECODE PSTextureEncoder::SetStaticShader(unsigned int dst_format,
 			bytecode->Size()
 		};
 
-		it = m_static_shaders_map.insert(std::make_pair(key, new_shader)).first;
+		it = m_static_shaders_map.emplace(key, new_shader).first;
 		
 		// Keep track of the D3DBlobs, so we can free them upon shutdown.
 		m_static_shaders_blobs.push_back(bytecode);

@@ -285,7 +285,7 @@ int CD3DFont::Init()
 	// Create a new texture for the font
 	// possible optimization: store the converted data in a buffer and fill the texture on creation.
 	// That way, we can use a static texture
-	std::unique_ptr<byte> texInitialData(new byte[m_tex_width * m_tex_height * 4]);
+	std::unique_ptr<byte[]> texInitialData(new byte[m_tex_width * m_tex_height * 4]);
 
 	for (y = 0; y < m_tex_height; y++)
 	{
