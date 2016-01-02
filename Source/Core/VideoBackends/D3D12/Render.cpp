@@ -1178,13 +1178,13 @@ void Renderer::ApplyState(bool use_dst_alpha)
 		}
 
 		SmallPsoDesc pso_desc = {
-			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_VERTEX_SHADER),   // D3D12_SHADER_BYTECODE VS;
-			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_PIXEL_SHADER),    // D3D12_SHADER_BYTECODE PS;
-			ShaderCache::GetActiveShaderBytecode(SHADER_STAGE_GEOMETRY_SHADER), // D3D12_SHADER_BYTECODE GS;
-			s_previous_vertex_format,					// D3D12_INPUT_LAYOUT_DESC InputLayout;
-			gx_state.blend,                             // BlendState BlendState;
-			modifiableRastState,                        // RasterizerState RasterizerState;
-			gx_state.zmode,                             // ZMode DepthStencilState;
+			ShaderCache::GetActiveGeometryShaderBytecode(), // D3D12_SHADER_BYTECODE GS;
+			ShaderCache::GetActivePixelShaderBytecode(),    // D3D12_SHADER_BYTECODE PS;
+			ShaderCache::GetActiveVertexShaderBytecode(),   // D3D12_SHADER_BYTECODE VS;
+			s_previous_vertex_format,                       // D3DVertexFormat* InputLayout;
+			gx_state.blend,                                 // BlendState BlendState;
+			modifiableRastState,                            // RasterizerState RasterizerState;
+			gx_state.zmode,                                 // ZMode DepthStencilState;
 		};
 
 		if (use_dst_alpha)
@@ -1200,9 +1200,9 @@ void Renderer::ApplyState(bool use_dst_alpha)
 				&pso_desc,
 				&pso,
 				topologyType,
-				reinterpret_cast<const PixelShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_PIXEL_SHADER)),
-				reinterpret_cast<const VertexShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_VERTEX_SHADER)),
-				reinterpret_cast<const GeometryShaderUid*>(ShaderCache::GetActiveShaderUid(SHADER_STAGE_GEOMETRY_SHADER))
+				ShaderCache::GetActiveGeometryShaderUid(),
+				ShaderCache::GetActivePixelShaderUid(),
+				ShaderCache::GetActiveVertexShaderUid()
 				)
 			);
 

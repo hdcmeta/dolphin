@@ -48,9 +48,9 @@ public:
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		
-		desc.GS = ShaderCache::GetShaderFromUid(SHADER_STAGE_GEOMETRY_SHADER, &key.gsUid);
-		desc.PS = ShaderCache::GetShaderFromUid(SHADER_STAGE_PIXEL_SHADER, &key.psUid);
-		desc.VS = ShaderCache::GetShaderFromUid(SHADER_STAGE_VERTEX_SHADER, &key.vsUid);
+		desc.GS = ShaderCache::GetGeometryShaderFromUid(&key.gsUid);
+		desc.PS = ShaderCache::GetPixelShaderFromUid(&key.psUid);
+		desc.VS = ShaderCache::GetVertexShaderFromUid(&key.vsUid);
 
 		if (!desc.PS.pShaderBytecode || !desc.VS.pShaderBytecode)
 		{
@@ -94,8 +94,8 @@ public:
 		smallDesc.DepthStencilState.hex = key.DepthStencilState.hex;
 		smallDesc.RasterizerState.packed = key.RasterizerState.packed;
 		smallDesc.GS = desc.GS;
-		smallDesc.VS = desc.VS;
 		smallDesc.PS = desc.PS;
+		smallDesc.VS = desc.VS;
 		smallDesc.InputLayout = reinterpret_cast<D3DVertexFormat*>(native.get());
 
 		gx_state_cache.m_small_pso_map[smallDesc] = pso;
@@ -395,7 +395,7 @@ HRESULT StateCache::GetPipelineStateObjectFromCache(D3D12_GRAPHICS_PIPELINE_STAT
 	return S_OK;
 }
 
-HRESULT StateCache::GetPipelineStateObjectFromCache(SmallPsoDesc* pso_desc, ID3D12PipelineState** pso, D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, const PixelShaderUid* ps_uid, const VertexShaderUid* vs_uid, const GeometryShaderUid* gs_uid)
+HRESULT StateCache::GetPipelineStateObjectFromCache(SmallPsoDesc* pso_desc, ID3D12PipelineState** pso, D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, const GeometryShaderUid* gs_uid, const PixelShaderUid* ps_uid, const VertexShaderUid* vs_uid)
 {
 	auto it = m_small_pso_map.find(*pso_desc);
 

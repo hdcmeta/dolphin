@@ -16,6 +16,14 @@
 namespace DX12
 {
 
+enum SHADER_STAGE
+{
+	SHADER_STAGE_GEOMETRY_SHADER = 0,
+	SHADER_STAGE_PIXEL_SHADER = 1,
+	SHADER_STAGE_VERTEX_SHADER = 2,
+	SHADER_STAGE_COUNT = 3
+};
+
 ID3D12Resource* shader_constant_buffers[DX12::SHADER_STAGE_COUNT] = {};
 void* shader_constant_buffer_data[SHADER_STAGE_COUNT] = {};
 D3D12_GPU_VIRTUAL_ADDRESS shader_constant_buffer_gpu_va[SHADER_STAGE_COUNT] = {};
