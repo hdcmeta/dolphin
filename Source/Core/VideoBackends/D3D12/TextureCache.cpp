@@ -579,7 +579,7 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 	g_renderer->RestoreAPIState();
 }
 
-D3D12_SHADER_BYTECODE GetConvertShader12(const char* Type)
+D3D12_SHADER_BYTECODE GetConvertShader12(std::string& Type)
 {
 	std::string shader = "#define DECODE DecodePixel_";
 	shader.append(Type);
@@ -601,9 +601,9 @@ TextureCache::TextureCache()
 	s_texture_cache_entry_readback_buffer_data = nullptr;
 	s_texture_cache_entry_readback_buffer_size = 0;
 
-	m_palette_pixel_shaders[GX_TL_IA8] = GetConvertShader12("IA8");
-	m_palette_pixel_shaders[GX_TL_RGB565] = GetConvertShader12("RGB565");
-	m_palette_pixel_shaders[GX_TL_RGB5A3] = GetConvertShader12("RGB5A3");
+	m_palette_pixel_shaders[GX_TL_IA8] = GetConvertShader12(std::string("IA8"));
+	m_palette_pixel_shaders[GX_TL_RGB565] = GetConvertShader12(std::string("RGB565"));
+	m_palette_pixel_shaders[GX_TL_RGB5A3] = GetConvertShader12(std::string("RGB5A3"));
 
 	CheckHR(
 		D3D::device12->CreateCommittedResource(

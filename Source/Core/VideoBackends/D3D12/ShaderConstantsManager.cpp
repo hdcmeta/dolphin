@@ -89,17 +89,16 @@ void ShaderConstantsManager::Shutdown()
 	}
 }
 
-void ShaderConstantsManager::LoadAndSetShaderConstants()
+void ShaderConstantsManager::LoadAndSetGeometryShaderConstants()
 {
-	// First, upload new constant buffer data.
 	if (GeometryShaderManager::dirty)
 	{
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER]++;
 
 		memcpy(
 			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_GEOMETRY_SHADER]) +
-				shader_constant_buffer_padded_sizes[SHADER_STAGE_GEOMETRY_SHADER] *
-				shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER],
+			shader_constant_buffer_padded_sizes[SHADER_STAGE_GEOMETRY_SHADER] *
+			shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER],
 			&GeometryShaderManager::constants,
 			sizeof(GeometryShaderConstants));
 
@@ -110,14 +109,29 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		D3D::command_list_mgr->m_dirty_gs_cbv = true;
 	}
 
+	if (D3D::command_list_mgr->m_dirty_gs_cbv)
+	{
+		D3D::current_command_list->SetGraphicsRootConstantBufferView(
+			DESCRIPTOR_TABLE_GS_CBV,
+			shader_constant_buffer_gpu_va[SHADER_STAGE_GEOMETRY_SHADER] +
+			shader_constant_buffer_padded_sizes[SHADER_STAGE_GEOMETRY_SHADER] *
+			shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER]
+			);
+
+		D3D::command_list_mgr->m_dirty_gs_cbv = false;
+	}
+}
+
+void ShaderConstantsManager::LoadAndSetPixelShaderConstants()
+{
 	if (PixelShaderManager::dirty)
 	{
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER]++;
 
 		memcpy(
 			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_PIXEL_SHADER]) +
-				shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
-				shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER],
+			shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
+			shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER],
 			&PixelShaderManager::constants,
 			sizeof(PixelShaderConstants));
 
@@ -128,14 +142,29 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		D3D::command_list_mgr->m_dirty_ps_cbv = true;
 	}
 
+	if (D3D::command_list_mgr->m_dirty_ps_cbv)
+	{
+		D3D::current_command_list->SetGraphicsRootConstantBufferView(
+			DESCRIPTOR_TABLE_PS_CBVONE,
+			shader_constant_buffer_gpu_va[SHADER_STAGE_PIXEL_SHADER] +
+			shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
+			shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER]
+			);
+
+		D3D::command_list_mgr->m_dirty_ps_cbv = false;
+	}
+}
+
+void ShaderConstantsManager::LoadAndSetVertexShaderConstants()
+{
 	if (VertexShaderManager::dirty)
 	{
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER]++;
 
 		memcpy(
 			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_VERTEX_SHADER]) +
-				shader_constant_buffer_padded_sizes[SHADER_STAGE_VERTEX_SHADER] *
-				shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER],
+			shader_constant_buffer_padded_sizes[SHADER_STAGE_VERTEX_SHADER] *
+			shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER],
 			&VertexShaderManager::constants,
 			sizeof(VertexShaderConstants));
 
@@ -144,31 +173,6 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		ADDSTAT(stats.thisFrame.bytesUniformStreamed, sizeof(VertexShaderConstants));
 
 		D3D::command_list_mgr->m_dirty_vs_cbv = true;
-	}
-
-	// Now, actually bind new constants as constant buffers.
-	if (D3D::command_list_mgr->m_dirty_gs_cbv)
-	{
-		D3D::current_command_list->SetGraphicsRootConstantBufferView(
-			DESCRIPTOR_TABLE_GS_CBV,
-			shader_constant_buffer_gpu_va[SHADER_STAGE_GEOMETRY_SHADER] +
-				shader_constant_buffer_padded_sizes[SHADER_STAGE_GEOMETRY_SHADER] *
-				shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER]
-			);
-
-		D3D::command_list_mgr->m_dirty_gs_cbv = false;
-	}
-
-	if (D3D::command_list_mgr->m_dirty_ps_cbv)
-	{
-		D3D::current_command_list->SetGraphicsRootConstantBufferView(
-			DESCRIPTOR_TABLE_PS_CBVONE,
-			shader_constant_buffer_gpu_va[SHADER_STAGE_PIXEL_SHADER] +
-				shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
-				shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER]
-			);
-
-		D3D::command_list_mgr->m_dirty_ps_cbv = false;
 	}
 
 	if (D3D::command_list_mgr->m_dirty_vs_cbv)

@@ -1169,7 +1169,9 @@ void Renderer::ApplyState(bool use_dst_alpha)
 	}
 
 	// Uploads and binds required constant buffer data for all stages.
-	ShaderConstantsManager::LoadAndSetShaderConstants();
+	ShaderConstantsManager::LoadAndSetGeometryShaderConstants();
+	ShaderConstantsManager::LoadAndSetPixelShaderConstants();
+	ShaderConstantsManager::LoadAndSetVertexShaderConstants();
 
 	if (D3D::command_list_mgr->m_dirty_pso || s_previous_vertex_format != reinterpret_cast<D3DVertexFormat*>(VertexLoaderManager::GetCurrentVertexFormat()))
 	{

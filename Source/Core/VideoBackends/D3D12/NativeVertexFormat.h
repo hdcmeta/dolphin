@@ -10,14 +10,14 @@ namespace DX12
 
 class D3DVertexFormat final : public NativeVertexFormat
 {
-	D3D12_INPUT_ELEMENT_DESC m_elems[15];
+	std::array<D3D12_INPUT_ELEMENT_DESC, 15> m_elems;
 	UINT m_num_elems;
 
 	D3D12_INPUT_LAYOUT_DESC m_layout12;
 
 public:
 	D3DVertexFormat(const PortableVertexDeclaration& vtx_decl);
-	~D3DVertexFormat() {}
+	~D3DVertexFormat();
 
 	void SetupVertexPointers();
 

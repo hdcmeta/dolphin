@@ -74,7 +74,7 @@ void PerfQuery::DisableQuery(PerfQueryGroup type)
 void PerfQuery::ResetQuery()
 {
 	m_query_count = 0;
-	std::fill_n(m_results, ArraySize(m_results), 0);
+	std::fill(std::begin(m_results), std::end(m_results), 0);
 }
 
 u32 PerfQuery::GetQueryResult(PerfQueryType type)

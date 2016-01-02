@@ -50,7 +50,6 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &vtx_decl)
 	: m_num_elems(0), m_layout12({}), m_elems()
 {
 	this->vtx_decl = vtx_decl;
-	memset(m_elems, 0, sizeof(m_elems));
 	const AttributeFormat* format = &vtx_decl.position;
 
 	if (format->enable)
@@ -97,7 +96,11 @@ D3DVertexFormat::D3DVertexFormat(const PortableVertexDeclaration &vtx_decl)
 	}
 
 	m_layout12.NumElements = m_num_elems;
-	m_layout12.pInputElementDescs = m_elems;
+	m_layout12.pInputElementDescs = m_elems.data();
+}
+
+D3DVertexFormat::~D3DVertexFormat()
+{
 }
 
 D3D12_INPUT_ELEMENT_DESC D3DVertexFormat::GetInputElementDescFromAttributeFormat(const AttributeFormat* format, const char* semantic_name, unsigned int semantic_index) const
