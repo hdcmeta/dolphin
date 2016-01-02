@@ -227,8 +227,8 @@ static D3D12_BOX GetScreenshotSourceBox(const TargetRectangle& target_rc)
 		std::max(target_rc.left, 0),
 		std::max(target_rc.top, 0),
 		0,
-		std::min(D3D::GetBackBufferWidth(), (unsigned int)target_rc.right),
-		std::min(D3D::GetBackBufferHeight(), (unsigned int)target_rc.bottom),
+		std::min(D3D::GetBackBufferWidth(), static_cast<unsigned int>(target_rc.right)),
+		std::min(D3D::GetBackBufferHeight(), static_cast<unsigned int>(target_rc.bottom)),
 		1);
 }
 
@@ -479,18 +479,21 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		void* readback_buffer_data = nullptr;
 		CheckHR(readback_buffer->Map(0, nullptr, &readback_buffer_data));
 
+		// Account for padding.
+		readback_buffer_data = static_cast<u8*>(readback_buffer_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+
 		// depth buffer is inverted in the d3d backend
-		float val = 1.0f - *((float*)((u8*)readback_buffer_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT));
+		float val = 1.0f - reinterpret_cast<float*>(readback_buffer_data)[0];
 		u32 ret = 0;
 
 		if (bpmem.zcontrol.pixel_format == PEControl::RGB565_Z16)
 		{
 			// if Z is in 16 bit format you must return a 16 bit integer
-			ret = MathUtil::Clamp<u32>((u32)(val * 65536.0f), 0, 0xFFFF);
+			ret = MathUtil::Clamp<u32>(static_cast<u32>(val * 65536.0f), 0, 0xFFFF);
 		}
 		else
 		{
-			ret = MathUtil::Clamp<u32>((u32)(val * 16777216.0f), 0, 0xFFFFFF);
+			ret = MathUtil::Clamp<u32>(static_cast<u32>(val * 16777216.0f), 0, 0xFFFFFF);
 		}
 
 		// EXISTINGD3D11TODO: in RE0 this value is often off by one in Video_DX9 (where this code is derived from), which causes lighting to disappear
@@ -527,7 +530,10 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		void* readback_buffer_data = nullptr;
 		CheckHR(readback_buffer->Map(0, nullptr, &readback_buffer_data));
 
-		u32 ret = *(u32*)((u8*)readback_buffer_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+		// Account for padding.
+		readback_buffer_data = static_cast<u8*>(readback_buffer_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+
+		u32 ret = reinterpret_cast<u32*>(readback_buffer_data)[0];
 
 		// check what to do with the alpha channel (GX_PokeAlphaRead)
 		PixelEngine::UPEAlphaReadReg alpha_read_mode = PixelEngine::GetAlphaReadMode();
@@ -762,7 +768,7 @@ void Renderer::SetBlendMode(bool force_update)
 	}
 	else
 	{
-		gx_state.blend.blend_enable = (u32)bpmem.blendmode.blendenable;
+		gx_state.blend.blend_enable = static_cast<u32>(bpmem.blendmode.blendenable);
 		if (bpmem.blendmode.blendenable)
 		{
 			gx_state.blend.blend_op = D3D12_BLEND_OP_ADD;
@@ -804,7 +810,7 @@ bool Renderer::SaveScreenshot(const std::string& filename, const TargetRectangle
 
 	D3D::command_list_mgr->ExecuteQueuedWork(true);
 
-	saved_png = TextureToPng((u8*)s_screenshot_texture_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, dst_location.PlacedFootprint.Footprint.RowPitch, filename, source_box.right - source_box.left, source_box.bottom - source_box.top, false);
+	saved_png = TextureToPng(static_cast<u8*>(s_screenshot_texture_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, dst_location.PlacedFootprint.Footprint.RowPitch, filename, source_box.right - source_box.left, source_box.bottom - source_box.top, false);
 
 	if (saved_png)
 	{
@@ -892,7 +898,7 @@ void Renderer::SwapImpl(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height
 		// draw each xfb source
 		for (u32 i = 0; i < xfb_count; ++i)
 		{
-			xfb_source = (const XFBSource*)xfb_source_list[i];
+			xfb_source = static_cast<const XFBSource*>(xfb_source_list[i]);
 
 			TargetRectangle drawRc;
 
@@ -1012,7 +1018,7 @@ void Renderer::SwapImpl(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height
 				w = s_record_width;
 				h = s_record_height;
 			}
-			formatBufferDump((u8*)s_screenshot_texture_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &frame_data[0], source_width, source_height, dst_location.PlacedFootprint.Footprint.RowPitch);
+			formatBufferDump(static_cast<u8*>(s_screenshot_texture_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &frame_data[0], source_width, source_height, dst_location.PlacedFootprint.Footprint.RowPitch);
 			AVIDump::AddFrame(&frame_data[0], source_height, source_height);
 		}
 		bLastFrameDumped = true;
@@ -1368,15 +1374,15 @@ void Renderer::SetSamplerState(int stage, int tex_index, bool custom_tex)
 	}
 	else
 	{
-		gx_state.sampler[stage].min_filter = (u32)tm0.min_filter;
-		gx_state.sampler[stage].mag_filter = (u32)tm0.mag_filter;
+		gx_state.sampler[stage].min_filter = static_cast<u32>(tm0.min_filter);
+		gx_state.sampler[stage].mag_filter = static_cast<u32>(tm0.mag_filter);
 	}
 
-	gx_state.sampler[stage].wrap_s = (u32)tm0.wrap_s;
-	gx_state.sampler[stage].wrap_t = (u32)tm0.wrap_t;
-	gx_state.sampler[stage].max_lod = (u32)tm1.max_lod;
-	gx_state.sampler[stage].min_lod = (u32)tm1.min_lod;
-	gx_state.sampler[stage].lod_bias = (s32)tm0.lod_bias;
+	gx_state.sampler[stage].wrap_s = static_cast<u32>(tm0.wrap_s);
+	gx_state.sampler[stage].wrap_t = static_cast<u32>(tm0.wrap_t);
+	gx_state.sampler[stage].max_lod = static_cast<u32>(tm1.max_lod);
+	gx_state.sampler[stage].min_lod = static_cast<u32>(tm1.min_lod);
+	gx_state.sampler[stage].lod_bias = static_cast<s32>(tm0.lod_bias);
 
 	// custom textures may have higher resolution, so disable the max_lod
 	if (custom_tex)

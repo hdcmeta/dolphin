@@ -224,7 +224,7 @@ void PSTextureEncoder::Encode(u8* dst, u32 format, u32 native_width, u32 bytes_p
 		
 	// Transfer staging buffer to GameCube/Wii RAM
 
-	u8* src = (u8*)m_out_readback_buffer_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+	u8* src = static_cast<u8*>(m_out_readback_buffer_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
 	u32 read_stride = std::min(bytes_per_row, dst_location.PlacedFootprint.Footprint.RowPitch);
 	for (unsigned int y = 0; y < num_blocks_y; ++y)
 	{

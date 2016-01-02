@@ -97,7 +97,7 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER]++;
 
 		memcpy(
-			(u8*)shader_constant_buffer_data[SHADER_STAGE_GEOMETRY_SHADER] +
+			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_GEOMETRY_SHADER]) +
 				shader_constant_buffer_padded_sizes[SHADER_STAGE_GEOMETRY_SHADER] *
 				shader_constant_buffer_current_slot_index[SHADER_STAGE_GEOMETRY_SHADER],
 			&GeometryShaderManager::constants,
@@ -115,9 +115,9 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER]++;
 
 		memcpy(
-			(u8*)shader_constant_buffer_data[SHADER_STAGE_PIXEL_SHADER] +
-			shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
-			shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER],
+			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_PIXEL_SHADER]) +
+				shader_constant_buffer_padded_sizes[SHADER_STAGE_PIXEL_SHADER] *
+				shader_constant_buffer_current_slot_index[SHADER_STAGE_PIXEL_SHADER],
 			&PixelShaderManager::constants,
 			sizeof(PixelShaderConstants));
 
@@ -133,9 +133,9 @@ void ShaderConstantsManager::LoadAndSetShaderConstants()
 		shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER]++;
 
 		memcpy(
-			(u8*)shader_constant_buffer_data[SHADER_STAGE_VERTEX_SHADER] +
-			shader_constant_buffer_padded_sizes[SHADER_STAGE_VERTEX_SHADER] *
-			shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER],
+			static_cast<u8*>(shader_constant_buffer_data[SHADER_STAGE_VERTEX_SHADER]) +
+				shader_constant_buffer_padded_sizes[SHADER_STAGE_VERTEX_SHADER] *
+				shader_constant_buffer_current_slot_index[SHADER_STAGE_VERTEX_SHADER],
 			&VertexShaderManager::constants,
 			sizeof(VertexShaderConstants));
 

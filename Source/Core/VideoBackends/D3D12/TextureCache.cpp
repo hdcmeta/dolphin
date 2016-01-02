@@ -151,7 +151,7 @@ bool TextureCache::TCacheEntry::Save(const std::string& filename, unsigned int l
 	D3D::command_list_mgr->ExecuteQueuedWork(true);
 
 	saved_png = TextureToPng(
-		(u8*)s_texture_cache_entry_readback_buffer_data + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT,
+		static_cast<u8*>(s_texture_cache_entry_readback_buffer_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT,
 		dst_location.PlacedFootprint.Footprint.RowPitch,
 		filename,
 		dst_location.PlacedFootprint.Footprint.Width,
@@ -166,7 +166,7 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 	const MathUtil::Rectangle<int>& src_rect,
 	const MathUtil::Rectangle<int>& dst_rect)
 {
-	TCacheEntry* srcentry = (TCacheEntry*)source;
+	const TCacheEntry* srcentry = reinterpret_cast<const TCacheEntry*>(source);
 	if (src_rect.GetWidth() == dst_rect.GetWidth()
 		&& src_rect.GetHeight() == dst_rect.GetHeight())
 	{
@@ -183,8 +183,8 @@ void TextureCache::TCacheEntry::CopyRectangleFromTexture(
 			src_box_pointer = &src_box;
 		}
 
-		if ((u32)src_rect.GetHeight() > config.height ||
-			(u32)src_rect.GetWidth() > config.width)
+		if (static_cast<u32>(src_rect.GetHeight()) > config.height ||
+			static_cast<u32>(src_rect.GetWidth()) > config.width)
 		{
 			src_box.front = 0;
 			src_box.back = 1;
@@ -495,7 +495,7 @@ void TextureCache::ConvertTexture(TCacheEntryBase* entry, TCacheEntryBase* uncon
 	// Only 1024 palette buffers are supported in flight at once (arbitrary, this should be plenty). D3D12TODO: Is this actually plenty?
 	m_palette_buffer_index = (m_palette_buffer_index + 1) %  1024;
 	const unsigned int palette_buffer_slot_size = 512;
-	memcpy((u8*)m_palette_buffer_data + m_palette_buffer_index * palette_buffer_slot_size, palette, palette_buffer_slot_size);
+	memcpy(static_cast<u8*>(m_palette_buffer_data) + m_palette_buffer_index * palette_buffer_slot_size, palette, palette_buffer_slot_size);
 
 	// D3D12: Because the second SRV slot is occupied by this buffer, and an arbitrary texture occupies the first SRV slot,
 	// we need to allocate temporary space out of our descriptor heap, place the palette SRV in the second slot, then copy the
@@ -639,8 +639,8 @@ TextureCache::TextureCache()
 	float paramsFormatZero[4] = { 15.f };
 	float paramsFormatNonzero[4] = { 255.f };
 
-	memcpy((u8*)m_palette_uniform_buffer_data, paramsFormatZero, sizeof(paramsFormatZero));
-	memcpy((u8*)m_palette_uniform_buffer_data + 256, paramsFormatNonzero, sizeof(paramsFormatNonzero));
+	memcpy(m_palette_uniform_buffer_data, paramsFormatZero, sizeof(paramsFormatZero));
+	memcpy(static_cast<u8*>(m_palette_uniform_buffer_data) + 256, paramsFormatNonzero, sizeof(paramsFormatNonzero));
 }
 
 TextureCache::~TextureCache()

@@ -72,7 +72,7 @@ public:
 			native.reset(g_vertex_manager->CreateNativeVertexFormat(native_vtx_decl));
 		}
 		
-		desc.InputLayout = ((D3DVertexFormat*)native.get())->GetActiveInputLayout12();
+		desc.InputLayout = reinterpret_cast<D3DVertexFormat*>(native.get())->GetActiveInputLayout12();
 
 		desc.CachedPSO.CachedBlobSizeInBytes = value_size;
 		desc.CachedPSO.pCachedBlob = value;

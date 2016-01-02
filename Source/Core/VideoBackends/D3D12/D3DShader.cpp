@@ -31,7 +31,7 @@ bool CompileShader(const std::string& code, D3DBlob** blob, const D3D_SHADER_MAC
 	if (error_buffer)
 	{
 		INFO_LOG(VIDEO, "Shader compiler messages:\n%s\n",
-			(const char*)error_buffer->GetBufferPointer());
+			static_cast<const char*>(error_buffer->GetBufferPointer()));
 	}
 
 	if (FAILED(hr))
@@ -44,7 +44,7 @@ bool CompileShader(const std::string& code, D3DBlob** blob, const D3D_SHADER_MAC
 		file.close();
 
 		PanicAlert("Failed to compile shader: %s\nDebug info (%s):\n%s",
-			filename.c_str(), shader_version_string, (const char*)error_buffer->GetBufferPointer());
+			filename.c_str(), shader_version_string, static_cast<const char*>(error_buffer->GetBufferPointer()));
 
 		*blob = nullptr;
 		error_buffer->Release();

@@ -103,10 +103,10 @@ VertexManager::VertexManager()
 {
 	CreateDeviceObjects();
 
-	s_pCurBufferPointer = s_pBaseBufferPointer = (u8*)m_vertex_buffer_data;
+	s_pCurBufferPointer = s_pBaseBufferPointer = static_cast<u8*>(m_vertex_buffer_data);
 	s_pEndBufferPointer = s_pBaseBufferPointer + MAX_VBUFFER_SIZE;
 
-	s_index_buffer_pointer = (u8*)m_index_buffer_data;
+	s_index_buffer_pointer = static_cast<u8*>(m_index_buffer_data);
 }
 
 VertexManager::~VertexManager()
@@ -116,11 +116,11 @@ VertexManager::~VertexManager()
 
 void VertexManager::PrepareDrawBuffers(u32 stride)
 {
-	u32 vertexBufferSize = u32(s_pCurBufferPointer - s_pBaseBufferPointer);
+	u32 vertexBufferSize = static_cast<u32>(s_pCurBufferPointer - s_pBaseBufferPointer);
 	s_last_index_write_size = IndexGenerator::GetIndexLen() * sizeof(u16);
 
-	m_vertex_draw_offset = (u32) (s_current_buffer_pointer_before_write - s_pBaseBufferPointer);
-	m_index_draw_offset = (u32) (s_index_buffer_pointer - (u8*) m_index_buffer_data);
+	m_vertex_draw_offset = static_cast<u32>(s_current_buffer_pointer_before_write - s_pBaseBufferPointer);
+	m_index_draw_offset = static_cast<u32>(s_index_buffer_pointer - static_cast<u8*>(m_index_buffer_data));
 
 	ADDSTAT(stats.thisFrame.bytesVertexStreamed, vertexBufferSize);
 	ADDSTAT(stats.thisFrame.bytesIndexStreamed, s_last_index_write_size);
@@ -228,14 +228,14 @@ void VertexManager::ResetBuffer(u32 stride)
 		s_pBaseBufferPointer = m_vertex_cpu_buffer;
 		s_pEndBufferPointer = m_vertex_cpu_buffer + MAXVBUFFERSIZE;
 
-		IndexGenerator::Start((u16*)m_index_cpu_buffer);
+		IndexGenerator::Start(reinterpret_cast<u16*>(m_index_cpu_buffer));
 	}
 	else
 	{
 		if (m_using_cpu_only_buffer)
 		{
-			s_pBaseBufferPointer = (u8*) m_vertex_buffer_data;
-			s_pEndBufferPointer = (u8*) m_vertex_buffer_data + MAX_VBUFFER_SIZE;
+			s_pBaseBufferPointer = static_cast<u8*>(m_vertex_buffer_data);
+			s_pEndBufferPointer = static_cast<u8*>(m_vertex_buffer_data) + MAX_VBUFFER_SIZE;
 			s_pCurBufferPointer = s_last_gpu_vertex_buffer_location;
 
 			m_using_cpu_only_buffer = false;
@@ -261,12 +261,12 @@ void VertexManager::ResetBuffer(u32 stride)
 
 		s_index_buffer_pointer += s_last_index_write_size;
 
-		if ((s_index_buffer_pointer - (u8*)m_index_buffer_data) + MAXIBUFFERSIZE > MAX_IBUFFER_SIZE)
+		if ((s_index_buffer_pointer - static_cast<u8*>(m_index_buffer_data)) + MAXIBUFFERSIZE > MAX_IBUFFER_SIZE)
 		{
-			s_index_buffer_pointer = (u8*)m_index_buffer_data;
+			s_index_buffer_pointer = static_cast<u8*>(m_index_buffer_data);
 		}
 
-		IndexGenerator::Start((u16*)s_index_buffer_pointer);
+		IndexGenerator::Start(reinterpret_cast<u16*>(s_index_buffer_pointer));
 	}
 }
 

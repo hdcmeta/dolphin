@@ -91,7 +91,7 @@ public:
 
 		m_offset = ((m_offset +vertex_size-1)/vertex_size)*vertex_size; // align offset to vertex_size bytes
 
-		memcpy((u8*)m_buf12_data + m_offset, data, size);
+		memcpy(static_cast<u8*>(m_buf12_data) + m_offset, data, size);
 
 		m_offset += size;
 		return (m_offset - size) / vertex_size;
@@ -234,7 +234,7 @@ int CD3DFont::Init()
 
 	// Create a DC and a bitmap for the font
 	HDC hDC = CreateCompatibleDC(nullptr);
-	HBITMAP hbmBitmap = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, (void**)&pBitmapBits, nullptr, 0);
+	HBITMAP hbmBitmap = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, reinterpret_cast<void**>(&pBitmapBits), nullptr, 0);
 	SetMapMode(hDC, MM_TEXT);
 
 	// create a GDI font
@@ -289,7 +289,7 @@ int CD3DFont::Init()
 
 	for (y = 0; y < m_tex_height; y++)
 	{
-		u32* pDst32_12 = (u32*)((u8*)texInitialData.get() + y * m_tex_width * 4);
+		u32* pDst32_12 = reinterpret_cast<u32*>(static_cast<u8*>(texInitialData.get()) + y * m_tex_width * 4);
 		for (x = 0; x < m_tex_width; x++)
 		{
 			const u8 bAlpha = (pBitmapBits[m_tex_width * y + x] & 0xff);
@@ -475,7 +475,7 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 	float sy = 1.f - y * scale_y;
 
 	// Fill vertex buffer
-	FONT2DVERTEX* vertices12 = (FONT2DVERTEX*)m_vb12_data + m_vb12_offset / sizeof(FONT2DVERTEX);
+	FONT2DVERTEX* vertices12 = static_cast<FONT2DVERTEX*>(m_vb12_data) + m_vb12_offset / sizeof(FONT2DVERTEX);
 	int num_triangles = 0L;
 
 	// set general pipeline state
@@ -491,7 +491,7 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 	if (m_vb12_offset + text.length() * 6 * sizeof(FONT2DVERTEX) >= s_max_num_vertices * sizeof(FONT2DVERTEX))
 	{
 		m_vb12_offset = 0;
-		vertices12 = (FONT2DVERTEX*)m_vb12_data;
+		vertices12 = static_cast<FONT2DVERTEX*>(m_vb12_data);
 	}
 
 	float start_x = sx;
