@@ -390,7 +390,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 	efb_pixel_rc.top = y;
 	efb_pixel_rc.right = x + 1;
 	efb_pixel_rc.bottom = y + 1;
-	TargetRectangle target_pixel_rc = Renderer::ConvertEFBRectangle(target_pixel_rc);
+	TargetRectangle target_pixel_rc = Renderer::ConvertEFBRectangle(efb_pixel_rc);
 
 	// Take the mean of the resulting dimensions; TODO: Don't use the center pixel, compute the average color instead
 	D3D12_RECT rect_to_lock;
