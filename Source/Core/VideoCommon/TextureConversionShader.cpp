@@ -462,19 +462,15 @@ static void WriteZ8Encoder(char*& p, const char* multiplier,API_TYPE ApiType)
 	WRITE(p, " float depth;\n");
 
 	WriteSampleColor(p, "r", "depth", 0, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 	WRITE(p, "ocol0.b = frac(depth * %s);\n", multiplier);
 
 	WriteSampleColor(p, "r", "depth", 1, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 	WRITE(p, "ocol0.g = frac(depth * %s);\n", multiplier);
 
 	WriteSampleColor(p, "r", "depth", 2, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 	WRITE(p, "ocol0.r = frac(depth * %s);\n", multiplier);
 
 	WriteSampleColor(p, "r", "depth", 3, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 	WRITE(p, "ocol0.a = frac(depth * %s);\n", multiplier);
 
 	WriteEncoderEnd(p);
@@ -490,7 +486,6 @@ static void WriteZ16Encoder(char*& p,API_TYPE ApiType)
 	// byte order is reversed
 
 	WriteSampleColor(p, "r", "depth", 0, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 
 	WRITE(p, "  depth *= 16777216.0;\n");
 	WRITE(p, "  expanded.r = floor(depth / (256.0 * 256.0));\n");
@@ -501,7 +496,6 @@ static void WriteZ16Encoder(char*& p,API_TYPE ApiType)
 	WRITE(p, "  ocol0.g = expanded.r / 255.0;\n");
 
 	WriteSampleColor(p, "r", "depth", 1, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 
 	WRITE(p, "  depth *= 16777216.0;\n");
 	WRITE(p, "  expanded.r = floor(depth / (256.0 * 256.0));\n");
@@ -524,7 +518,6 @@ static void WriteZ16LEncoder(char*& p,API_TYPE ApiType)
 	// byte order is reversed
 
 	WriteSampleColor(p, "r", "depth", 0, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 
 	WRITE(p, "  depth *= 16777216.0;\n");
 	WRITE(p, "  expanded.r = floor(depth / (256.0 * 256.0));\n");
@@ -537,7 +530,6 @@ static void WriteZ16LEncoder(char*& p,API_TYPE ApiType)
 	WRITE(p, "  ocol0.g = expanded.g / 255.0;\n");
 
 	WriteSampleColor(p, "r", "depth", 1, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth = 1.0f - depth;\n");
 
 	WRITE(p, "  depth *= 16777216.0;\n");
 	WRITE(p, "  expanded.r = floor(depth / (256.0 * 256.0));\n");
@@ -562,9 +554,7 @@ static void WriteZ24Encoder(char*& p, API_TYPE ApiType)
 	WRITE(p, "  float3 expanded1;\n");
 
 	WriteSampleColor(p, "r", "depth0", 0, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth0 = 1.0f - depth0;\n");
 	WriteSampleColor(p, "r", "depth1", 1, ApiType);
-	if (ApiType == API_D3D) WRITE(p, "depth1 = 1.0f - depth1;\n");
 
 	for (int i = 0; i < 2; i++)
 	{

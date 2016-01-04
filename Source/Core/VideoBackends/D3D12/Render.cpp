@@ -483,7 +483,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		readback_buffer_data = static_cast<u8*>(readback_buffer_data) + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
 
 		// depth buffer is inverted in the d3d backend
-		float val = 1.0f - reinterpret_cast<float*>(readback_buffer_data)[0];
+		float val = reinterpret_cast<float*>(readback_buffer_data)[0];
 		u32 ret = 0;
 
 		if (bpmem.zcontrol.pixel_format == PEControl::RGB565_Z16)
@@ -581,8 +581,8 @@ void Renderer::PokeEFB(EFBAccessType type, const EfbPokeData* points, size_t num
 	else // if (type == POKE_Z)
 	{
 		D3D12_VIEWPORT vp = { 0.0f, 0.0f, (float)GetTargetWidth(), (float)GetTargetHeight(),
-			1.0f - MathUtil::Clamp<float>(xfmem.viewport.farZ, 0.0f, 16777215.0f) / 16777216.0f,
-			1.0f - MathUtil::Clamp<float>((xfmem.viewport.farZ - MathUtil::Clamp<float>(xfmem.viewport.zRange, 0.0f, 16777215.0f)), 0.0f, 16777215.0f) / 16777216.0f };
+			MathUtil::Clamp<float>(xfmem.viewport.farZ, 0.0f, 16777215.0f) / 16777216.0f,
+			MathUtil::Clamp<float>((xfmem.viewport.farZ - MathUtil::Clamp<float>(xfmem.viewport.zRange, 0.0f, 16777215.0f)), 0.0f, 16777215.0f) / 16777216.0f };
 
 		D3D::DrawEFBPokeQuads(
 			type,
@@ -639,8 +639,8 @@ void Renderer::SetViewport()
 	height = (y + height <= GetTargetHeight()) ? height : (GetTargetHeight() - y);
 
 	D3D12_VIEWPORT vp = { x, y, width, height,
-		1.0f - MathUtil::Clamp<float>(xfmem.viewport.farZ, 0.0f, 16777215.0f) / 16777216.0f,
-		1.0f - MathUtil::Clamp<float>((xfmem.viewport.farZ - MathUtil::Clamp<float>(xfmem.viewport.zRange, 0.0f, 16777215.0f)), 0.0f, 16777215.0f) / 16777216.0f };
+		MathUtil::Clamp<float>(xfmem.viewport.farZ, 0.0f, 16777215.0f) / 16777216.0f,
+		MathUtil::Clamp<float>((xfmem.viewport.farZ - MathUtil::Clamp<float>(xfmem.viewport.zRange, 0.0f, 16777215.0f)), 0.0f, 16777215.0f) / 16777216.0f };
 	D3D::current_command_list->RSSetViewports(1, &vp);
 }
 
@@ -668,7 +668,7 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool color_enable, bool alpha
 
 	// Color is passed in bgra mode so we need to convert it to rgba
 	u32 rgba_color = (color & 0xFF00FF00) | ((color >> 16) & 0xFF) | ((color << 16) & 0xFF0000);
-	D3D::DrawClearQuad(rgba_color, 1.0f - (z & 0xFFFFFF) / 16777216.0f, blend_desc, depth_stencil_desc, FramebufferManager::GetEFBColorTexture()->GetMultisampled());
+	D3D::DrawClearQuad(rgba_color, (z & 0xFFFFFF) / 16777216.0f, blend_desc, depth_stencil_desc, FramebufferManager::GetEFBColorTexture()->GetMultisampled());
 
 	// Restores proper viewport/scissor settings.
 	g_renderer->RestoreAPIState();
