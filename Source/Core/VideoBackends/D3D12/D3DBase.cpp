@@ -585,7 +585,15 @@ void CreateRootSignatures()
 		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND // UINT OffsetInDescriptorsFromTableStart;
 	};
 
-	D3D12_ROOT_PARAMETER root_parameters[6];
+	D3D12_DESCRIPTOR_RANGE desc_range_uav = {
+		D3D12_DESCRIPTOR_RANGE_TYPE_UAV,     // D3D12_DESCRIPTOR_RANGE_TYPE RangeType;
+		1,                                   // UINT NumDescriptors;
+		2,                                   // UINT BaseShaderRegister;
+		0,                                   // UINT RegisterSpace;
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND // UINT OffsetInDescriptorsFromTableStart;
+	};
+
+	D3D12_ROOT_PARAMETER root_parameters[7];
 
 	root_parameters[DESCRIPTOR_TABLE_PS_SRV].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	root_parameters[DESCRIPTOR_TABLE_PS_SRV].DescriptorTable.NumDescriptorRanges = 1;
@@ -616,6 +624,11 @@ void CreateRootSignatures()
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.RegisterSpace = 0;
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].Descriptor.ShaderRegister = 1;
 	root_parameters[DESCRIPTOR_TABLE_PS_CBVTWO].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	root_parameters[DESCRIPTOR_TABLE_PS_UAV].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	root_parameters[DESCRIPTOR_TABLE_PS_UAV].DescriptorTable.NumDescriptorRanges = 1;
+	root_parameters[DESCRIPTOR_TABLE_PS_UAV].DescriptorTable.pDescriptorRanges = &desc_range_uav;
+	root_parameters[DESCRIPTOR_TABLE_PS_UAV].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	// D3D12TODO: Add bounding box UAV to root signature.
 
